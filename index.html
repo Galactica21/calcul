@@ -184,6 +184,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-
   <div class="carte">
     <h2>Mes réglages</h2>
     <label for="g-pension">Retraite mensuelle (CHF)</label><input id="g-pension" inputmode="decimal">
+    <label for="g-cle">Clé AwesomeAPI (facultatif : taux à la minute si le service la demande)</label><input id="g-cle" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="coller la clé ici">
     <label for="g-marge">Marge de la Caisse sur CHF → USD (%)</label><input id="g-marge" inputmode="decimal">
     <label for="g-ecart">Écart du Banco do Brasil (R$ sous le marché, par dollar)</label><input id="g-ecart" inputmode="decimal">
     <label for="g-iof">IOF (%)</label><input id="g-iof" inputmode="decimal">
@@ -216,10 +217,10 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-
 <script>
 "use strict";
 /* ---------------------------------------------------------------- données et outils */
-const VERSION = "2.5 (20/11/2026 · relevé impôts)";
+const VERSION = "2.6 (20/11/2026 · relevé impôts)";
 const CAL2026 = ["08/01/2026","05/02/2026","05/03/2026","08/04/2026","07/05/2026","05/06/2026","07/07/2026",
   "06/08/2026","07/09/2026","07/10/2026","06/11/2026","07/12/2026"];
-const DEF = {pension:0, marge:1.18, ecart:0.09, iof:0.38, dateOrdre:"auto", fige:null, figePour:null, theme:"auto",
+const DEF = {pension:0, marge:1.18, ecart:0.09, iof:0.38, dateOrdre:"auto", fige:null, figePour:null, theme:"auto", cleAwesome:"",
   mult:{"07/12/2026":2}};
 const MOIS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
 const JOURS = ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
@@ -312,9 +313,10 @@ async function getJSON(url){
     catch(e2){ throw new Error((e1 && e1.message ? e1.message : e1) + " / " + (e2 && e2.message ? e2.message : e2)); }
   }
 }
+const avecCle = (url) => cfg.cleAwesome ? url + (url.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(cfg.cleAwesome) : url;
 const SOURCES = [
   async () => {
-    const j = await getJSON("https://economia.awesomeapi.com.br/json/last/USD-BRL,CHF-BRL");
+    const j = await getJSON(avecCle("https://economia.awesomeapi.com.br/json/last/USD-BRL,CHF-BRL"));
     const milieu = (o) => { const b = parseFloat(o.bid), a = parseFloat(o.ask); return a >= b && b > 0 ? (a + b) / 2 : b; };
     const u = milieu(j.USDBRL), c = milieu(j.CHFBRL), r = {usd_brl: u, chf_usd: c / u, source: "AwesomeAPI"};
     const pu = parseFloat(j.USDBRL.pctChange), pc = parseFloat(j.CHFBRL.pctChange);
@@ -361,7 +363,7 @@ function setEtat(txt, cls){ $("#etat-txt").textContent = txt; $("#pt").className
 /* ---------------------------------------------------------------- historique 30 jours et graphiques */
 let hist = store.get("cr_hist", null);
 async function serieAwesome(paire){
-  const l = await getJSON("https://economia.awesomeapi.com.br/json/daily/" + paire + "/30"), o = {};
+  const l = await getJSON(avecCle("https://economia.awesomeapi.com.br/json/daily/" + paire + "/30")), o = {};
   for (const x of l){ const j = new Date(+x.timestamp * 1000).toISOString().slice(0, 10); if (!(j in o)) o[j] = parseFloat(x.bid); }
   return o;
 }
@@ -392,7 +394,7 @@ function courbe(cv, titre, serie, pct){
   const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, L, H);
   g.font = "12px -apple-system, Segoe UI, sans-serif"; g.textBaseline = "top";
   g.fillStyle = c("--sous"); g.textAlign = "left"; g.fillText(titre, 10, 8);
-  if (!serie || serie.length < 2){ g.fillText("Historique indisponible (pas de connexion)", 10, 50); return; }
+  if (!serie || serie.length < 2){ g.fillText("Historique indisponible (la source n'a pas répondu)", 10, 50); return; }
   const lo = Math.min(...serie), hi = Math.max(...serie), amp = (hi - lo) || 1, m = 8, top = 32, bas = H - 22;
   const px = (i) => m + i * (L - 2 * m) / (serie.length - 1), py = (v) => top + (hi - v) / amp * (bas - top);
   g.beginPath(); g.moveTo(px(0), bas); serie.forEach((v, i) => g.lineTo(px(i), py(v))); g.lineTo(px(serie.length - 1), bas); g.closePath();
@@ -823,7 +825,7 @@ function appliquerTheme(){
 }
 function remplirReglages(){
   $("#g-pension").value = fmt(cfg.pension, 2); $("#g-marge").value = fmt(cfg.marge, 2); $("#g-ecart").value = fmt(cfg.ecart, 4);
-  $("#g-iof").value = fmt(cfg.iof, 2); $("#g-date").value = cfg.dateOrdre; $("#g-theme").value = cfg.theme || "auto";
+  $("#g-cle").value = cfg.cleAwesome || ""; $("#g-iof").value = fmt(cfg.iof, 2); $("#g-date").value = cfg.dateOrdre; $("#g-theme").value = cfg.theme || "auto";
   $("#g-cal").value = cal.join("\n");
   $("#g-mult").value = Object.entries(cfg.mult || {}).map(([k, v]) => k + "=" + v).join("\n");
   $("#in-fige").value = cfg.fige && cfg.figePour ? fmt(cfg.fige, 4) : "";
@@ -841,9 +843,11 @@ $("#g-save").onclick = () => {
     const [k, v] = l.split("="); if (!parseD(k) || !(num(v) > 0)){ msg.textContent = "Multiplicateur invalide : écrivez JJ/MM/AAAA=2."; return; }
     mult[fmtD(parseD(k))] = num(v);
   }
-  Object.assign(cfg, {pension: p, marge: m, ecart: e, iof: i, dateOrdre: auto ? "auto" : d, mult});
+  const cle = $("#g-cle").value.trim(), cleChangee = cle !== (cfg.cleAwesome || "");
+  Object.assign(cfg, {pension: p, marge: m, ecart: e, iof: i, dateOrdre: auto ? "auto" : d, mult, cleAwesome: cle});
   cal = dates; store.set("cr_cal", cal); sauverCfg(); remplirReglages(); afficher();
-  msg.textContent = "Réglages enregistrés.";
+  msg.textContent = "Réglages enregistrés." + (cleChangee ? " Clé prise en compte : appuyez sur « ↻ Taux » (onglet Calcul)." : "");
+  if (cleChangee){ try{ store.set("cr_hist", null); hist = null; actualiser(true); }catch(e){} }
 };
 function ordreCourant(){
   const auto = String(cfg.dateOrdre).trim().toLowerCase() === "auto" || cfg.dateOrdre === "";
