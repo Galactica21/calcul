@@ -117,6 +117,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-
     <canvas id="cv-chf" class="graph" height="112"></canvas>
     <canvas id="cv-usd" class="graph" height="112"></canvas>
     <div id="r-ordre" class="expl"></div>
+    <details id="diag"><summary><span class="sous">Détails techniques (sources)</span></summary><div class="expl" id="r-diag" style="white-space:pre-wrap"></div></details>
     <details id="manuel"><summary><span class="sous">Saisir les taux à la main</span></summary>
       <div class="rangee"><div><label for="m-chf">CHF → USD</label><input id="m-chf" inputmode="decimal" placeholder="1,1865"></div>
         <div><label for="m-usd">USD → BRL</label><input id="m-usd" inputmode="decimal" placeholder="5,811"></div></div>
@@ -217,7 +218,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-
 <script>
 "use strict";
 /* ---------------------------------------------------------------- données et outils */
-const VERSION = "2.6 (20/11/2026 · relevé impôts)";
+const VERSION = "2.7 (21/11/2026 · diagnostic des sources)";
 const CAL2026 = ["08/01/2026","05/02/2026","05/03/2026","08/04/2026","07/05/2026","05/06/2026","07/07/2026",
   "06/08/2026","07/09/2026","07/10/2026","06/11/2026","07/12/2026"];
 const DEF = {pension:0, marge:1.18, ecart:0.09, iof:0.38, dateOrdre:"auto", fige:null, figePour:null, theme:"auto", cleAwesome:"",
@@ -329,23 +330,29 @@ const SOURCES = [
     return {usd_brl: j.rates.BRL, chf_usd: 1 / j.rates.CHF, source: "open.er-api.com"};
   },
   async () => {
+    const j = await getJSON("https://api.frankfurter.dev/v1/latest?base=USD&symbols=BRL,CHF");
+    return {usd_brl: j.rates.BRL, chf_usd: 1 / j.rates.CHF, source: "Frankfurter (BCE)"};
+  },
+  async () => {
     const j = await getJSON("https://api.frankfurter.app/latest?from=USD&to=BRL,CHF");
     return {usd_brl: j.rates.BRL, chf_usd: 1 / j.rates.CHF, source: "Frankfurter (BCE)"};
   }
 ];
+const NOMS_SRC = ["AwesomeAPI", "open.er-api.com", "Frankfurter .dev", "Frankfurter .app"];
+let journal = [];
 let enCours = false, diagnostic = "";
 async function actualiser(force){
   if (enCours) return;
   if (force !== true && taux && taux.manuel && Date.now() - taux.at < 60 * 60 * 1000){ afficher(); return; }  // taux saisis a la main : gardes 60 min
   enCours = true; $("#b-act").disabled = true; setEtat("…", "");
-  let ok = null; const pannes = [];
+  let ok = null; const pannes = []; journal = [];
   for (const essai of [1, 2]){
     for (const [i, src] of SOURCES.entries()){
       try{
         const t = await src();
-        if (t.usd_brl > 1 && t.usd_brl < 30 && t.chf_usd > 0.8 && t.chf_usd < 1.8){ ok = t; break; }
-        pannes.push("source " + (i + 1) + " : valeurs incohérentes");
-      }catch(e){ if (essai === 2) pannes.push("source " + (i + 1) + " : " + (e && e.message ? e.message : e)); }
+        if (t.usd_brl > 1 && t.usd_brl < 30 && t.chf_usd > 0.8 && t.chf_usd < 1.8){ journal.push(NOMS_SRC[i] + " : OK"); ok = t; break; }
+        pannes.push("source " + (i + 1) + " : valeurs incohérentes"); journal.push(NOMS_SRC[i] + " : valeurs incohérentes");
+      }catch(e){ const m = e && e.message ? e.message : String(e); journal.push(NOMS_SRC[i] + " : " + m); if (essai === 2) pannes.push("source " + (i + 1) + " : " + m); }
     }
     if (ok) break;
   }
@@ -355,8 +362,8 @@ async function actualiser(force){
   enCours = false; $("#b-act").disabled = false;
   if (ok){ ok.at = Date.now(); taux = ok; store.set("cr_taux", taux); enLigne = true; }
   else { enLigne = false; }
-  afficher();
-  if (ok){ await majHist(); dessiner(); }
+  afficher(); $("#r-diag").textContent = journal.join("\n");
+  if (ok){ await majHist(); dessiner(); $("#r-diag").textContent = journal.join("\n"); }
 }
 function setEtat(txt, cls){ $("#etat-txt").textContent = txt; $("#pt").className = "pt " + cls; }
 
@@ -373,17 +380,20 @@ async function histAwesome(){
   if (j.length < 5) throw new Error("historique trop court");
   return {usd: j.map((k) => u[k]), chf: j.map((k) => c[k] / u[k])};
 }
-async function histFrankfurter(){
+async function histFrankfurter(neuf){
   const fin = new Date(), deb = new Date(Date.now() - 34 * 86400000), iso = (d) => d.toISOString().slice(0, 10);
-  const d = await getJSON("https://api.frankfurter.app/" + iso(deb) + ".." + iso(fin) + "?from=USD&to=BRL,CHF");
+  const d = await getJSON(neuf ? "https://api.frankfurter.dev/v1/" + iso(deb) + ".." + iso(fin) + "?base=USD&symbols=BRL,CHF"
+    : "https://api.frankfurter.app/" + iso(deb) + ".." + iso(fin) + "?from=USD&to=BRL,CHF");
   const j = Object.keys(d.rates).filter((k) => d.rates[k].BRL && d.rates[k].CHF).sort();
   if (j.length < 5) throw new Error("historique trop court");
   return {usd: j.map((k) => d.rates[k].BRL), chf: j.map((k) => 1 / d.rates[k].CHF)};
 }
 async function majHist(){
   if (hist && Date.now() - hist.at < 3 * 3600 * 1000) return;
-  for (const src of [histAwesome, histFrankfurter]){
-    try{ const h = await src(); h.at = Date.now(); hist = h; store.set("cr_hist", hist); return; }catch(e){ /* source suivante */ }
+  const liste = [["Hist. AwesomeAPI", histAwesome], ["Hist. Frankfurter .dev", () => histFrankfurter(true)], ["Hist. Frankfurter .app", () => histFrankfurter(false)]];
+  for (const [nom, src] of liste){
+    try{ const h = await src(); h.at = Date.now(); hist = h; store.set("cr_hist", hist); journal.push(nom + " : OK"); return; }
+    catch(e){ journal.push(nom + " : " + (e && e.message ? e.message : e)); }
   }
 }
 function fmtPct(x){ return (x >= 0 ? "+" : "−") + fmt(Math.abs(x), 2) + " %"; }
@@ -467,6 +477,7 @@ function afficher(){
     if (taux.chf_pct !== undefined) mo.push("Franc suisse : " + fmtPct(taux.chf_pct) + " face au dollar");
     $("#r-var").textContent = mo.join(" | ");
     $("#r-src").textContent = (enLigne || !diagnostic) ? "Source : " + taux.source : "Source : " + taux.source + " (dernier taux connu). " + diagnostic;
+    $("#r-diag").textContent = journal.length ? journal.join("\n") : "(aucun essai depuis l'ouverture : touchez « Taux »)";
     $("#maj").textContent = new Date(taux.at).toLocaleTimeString("fr-FR", {hour: "2-digit", minute: "2-digit"});
   } else {
     setEtat(enLigne ? "En ligne" : "Pas de taux", "ko");
