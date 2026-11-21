@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Calcul Retraite</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Retraite">
+<meta name="theme-color" content="#1a1330">
+<style>
+:root{
+  --bg:#f4f6f8;--fg:#1a1a1a;--sous:#666;--champ:#fff;--bord:#c5ccd4;--bouton:#e1e5ea;--actif:#d2d8df;
+  --tot-bg:#e3f4e8;--tot-fg:#0a6b2d;--accent:#2a6fdb;--alerte:#b4570a;--carte:#fff;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme]){
+  --bg:#1e2128;--fg:#e8eaed;--sous:#9aa0a6;--champ:#2b303a;--bord:#444b58;--bouton:#3a4050;--actif:#4a5163;
+  --tot-bg:#17301f;--tot-fg:#5fd68a;--accent:#8ab4f8;--alerte:#f0a35e;--carte:#262a33;color-scheme:dark}}
+:root[data-theme="clair"]{color-scheme:light}
+:root[data-theme="sombre"],:root[data-theme="dark"]{
+  --bg:#1e2128;--fg:#e8eaed;--sous:#9aa0a6;--champ:#2b303a;--bord:#444b58;--bouton:#3a4050;--actif:#4a5163;
+  --tot-bg:#17301f;--tot-fg:#5fd68a;--accent:#8ab4f8;--alerte:#f0a35e;--carte:#262a33;color-scheme:dark}
+:root[data-theme="violet"]{
+  --bg:#1a1330;--fg:#ece6ff;--sous:#a99bd1;--champ:#2a2048;--bord:#4b3a7a;--bouton:#3b2d66;--actif:#4f3d86;
+  --tot-bg:#2a1d52;--tot-fg:#c9a0ff;--accent:#a66cff;--alerte:#ffb86b;--carte:#231a40;color-scheme:dark}
+:root[data-theme="ocean"]{
+  --bg:#0e2233;--fg:#e6f4ff;--sous:#8fb4cc;--champ:#16334a;--bord:#2d5573;--bouton:#1e4560;--actif:#2a5a7a;
+  --tot-bg:#0f3a47;--tot-fg:#6fe0f0;--accent:#31b6e8;--alerte:#ffc069;--carte:#122b40;color-scheme:dark}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--fg);font:16px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+  padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px));
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:calc(68px + env(safe-area-inset-bottom,0px));
+  -webkit-text-size-adjust:100%;overscroll-behavior-y:none}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0 6px}
+h1{font-size:20px;margin:0}
+h2{font-size:17px;margin:0 0 8px}
+.sous{color:var(--sous);font-size:14px}
+.carte{background:var(--carte);border:1px solid var(--bord);border-radius:14px;padding:14px;margin:10px 0}
+.carte h2{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.ligne{display:flex;justify-content:space-between;gap:12px;padding:4px 0}
+.ligne b{text-align:right;font-variant-numeric:tabular-nums}
+.expl{font-size:14px;color:var(--sous);margin:4px 0 8px}
+.mois1{font-size:12px;color:var(--alerte);margin:2px 0 6px}
+#zone-imp{display:none}
+.imp-del,.imp-mod{font-size:12px;color:var(--accent);margin-left:6px} #imp-liste .ligne b{white-space:nowrap}
+@page{margin:15mm}
+#zone-imp.ouvert{display:block;position:fixed;top:0;left:0;right:0;bottom:0;z-index:999;overflow:auto;background:#fff;color:#000;
+  font-family:Arial,Helvetica,sans-serif;padding:0 14px 30px;-webkit-overflow-scrolling:touch}
+#zone-imp .bar{position:sticky;top:0;display:flex;gap:8px;background:#fff;padding:10px 0;border-bottom:1px solid #ccc;margin-bottom:12px}
+#zone-imp .bar button{flex:1;color:#000;background:#eee;border:1px solid #999}
+#zone-imp .bar button.principal{background:#2a6fdb;color:#fff;border-color:#2a6fdb}
+#zone-imp h1{font-size:22px;font-weight:bold;margin:0 0 4px} #zone-imp h3{font-size:14px;font-weight:normal;margin:0 0 14px;color:#444}
+#zone-imp table{width:100%;border-collapse:collapse;margin:10px 0}
+#zone-imp th,#zone-imp td{border:1px solid #888;padding:6px 8px;font-size:14px;text-align:left}
+#zone-imp th{background:#e8e8e8} #zone-imp .c{text-align:center} #zone-imp .r{text-align:right}
+#zone-imp tfoot td{font-weight:bold;background:#f2f2f2} #zone-imp p{font-size:12px;color:#333}
+@media print{
+  body.imprime-imp > *{display:none !important}
+  body.imprime-imp #zone-imp{display:block !important;position:static;overflow:visible;padding:0}
+  #zone-imp .bar{display:none !important}
+}
+}
+.perte{color:var(--alerte)}
+.total{background:var(--tot-bg);border-color:var(--bord)}
+.total .gros{font-size:30px;font-weight:700;color:var(--tot-fg);font-variant-numeric:tabular-nums}
+.alerte{border-left:4px solid var(--alerte);padding:8px 10px;margin:8px 0;font-size:14px;background:var(--carte);border-radius:8px}
+label{display:block;font-size:14px;color:var(--sous);margin:10px 0 3px}
+input,select,textarea{width:100%;font:inherit;font-size:16px;color:var(--fg);background:var(--champ);border:1px solid var(--bord);
+  border-radius:10px;padding:10px 12px}
+textarea{min-height:96px;font-family:ui-monospace,Menlo,monospace;font-size:14px}
+button{font:inherit;font-size:16px;color:var(--fg);background:var(--bouton);border:1px solid var(--bord);border-radius:10px;
+  padding:10px 14px;min-height:44px}
+button:active{background:var(--actif)}
+button.principal{background:var(--accent);color:#fff;border-color:transparent;font-weight:600}
+.rangee{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+.rangee>*{flex:1 1 140px}
+.badge{font-size:12px;padding:2px 8px;border-radius:99px;background:var(--bouton);color:var(--fg);white-space:nowrap}
+.badge.reel{background:var(--tot-bg);color:var(--tot-fg)}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--carte);border-top:1px solid var(--bord);
+  padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+nav button{flex:1;border:0;border-radius:0;background:transparent;min-height:56px;font-size:12px;color:var(--sous);display:flex;
+  flex-direction:column;align-items:center;justify-content:center;gap:2px}
+nav button .ic{font-size:22px;line-height:1}
+nav button.on{color:var(--accent);font-weight:600}
+.graph{display:block;width:100%;height:112px;margin-top:8px;border-radius:10px;background:var(--champ)}
+.onglet{display:none}.onglet.on{display:block}
+details{border-top:1px solid var(--bord);padding:8px 0}
+details:first-of-type{border-top:0}
+summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center;min-height:40px}
+.grille{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.grille button{min-height:56px;font-size:22px}
+#c-aff{font-size:34px;text-align:right;padding:10px 4px;min-height:64px;word-break:break-all;font-variant-numeric:tabular-nums}
+#c-hist{text-align:right;min-height:20px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--sous)}
+.pt{width:9px;height:9px;border-radius:50%;background:var(--sous)}.pt.ok{background:var(--tot-fg)}.pt.ko{background:var(--alerte)}
+@media(prefers-reduced-motion:no-preference){.onglet.on{animation:ap .15s ease-out}@keyframes ap{from{opacity:.4}to{opacity:1}}}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Calcul Retraite</h1><div class="pill" id="etat"><span class="pt" id="pt"></span><span id="etat-txt">…</span></div></div>
+  <button id="b-act" aria-label="Actualiser les taux">↻ Taux</button>
+</header>
+
+<!-- ===================== CALCUL ===================== -->
+<section id="t-calcul" class="onglet on">
+  <div class="carte">
+    <h2>Taux du jour <span class="sous" id="maj"></span></h2>
+    <div class="ligne"><span>CHF → USD (marché)</span><b id="r-chf">–</b></div>
+    <div class="ligne"><span>USD → BRL (marché)</span><b id="r-usd">–</b></div>
+    <div class="sous" id="r-src"></div>
+    <div class="sous" id="r-var"></div>
+    <canvas id="cv-chf" class="graph" height="112"></canvas>
+    <canvas id="cv-usd" class="graph" height="112"></canvas>
+    <div id="r-ordre" class="expl"></div>
+    <details id="manuel"><summary><span class="sous">Saisir les taux à la main</span></summary>
+      <div class="rangee"><div><label for="m-chf">CHF → USD</label><input id="m-chf" inputmode="decimal" placeholder="1,1865"></div>
+        <div><label for="m-usd">USD → BRL</label><input id="m-usd" inputmode="decimal" placeholder="5,811"></div></div>
+      <div class="rangee" style="margin-top:8px"><button id="b-manuel">Utiliser ces taux</button></div>
+      <div class="expl" id="m-msg"></div></details>
+  </div>
+  <div id="avert"></div>
+  <div class="carte">
+    <h2>Taux CHF → USD figé</h2>
+    <p class="expl">La Caisse regarde le taux à minuit (heure suisse) du jour de l'ordre. Saisissez ce taux, ou figez le taux actuel si vous êtes juste après minuit.</p>
+    <div class="rangee"><div><input id="in-fige" inputmode="decimal" placeholder="ex. 1,2247"></div>
+      <button id="b-fige">Figer ce taux</button><button id="b-fige-live">Figer le taux actuel</button></div>
+    <div class="expl" id="fige-etat"></div>
+  </div>
+  <div id="sortie"></div>
+  <div class="carte">
+    <h2>Quel dollar pour viser un net ?</h2>
+    <div class="rangee"><div><label for="in-obj">Net voulu (R$)</label><input id="in-obj" inputmode="decimal" placeholder="10 000"></div></div>
+    <div id="obj-res" class="expl"></div>
+  </div>
+</section>
+
+<!-- ===================== RECAP ===================== -->
+<section id="t-recap" class="onglet">
+  <div class="carte" id="rc-moy"></div>
+  <div class="carte" id="rc-liste"></div>
+  <div class="carte" id="imp-carte">
+    <h2>Impôts : relevé en portugais (PDF)</h2>
+    <p class="expl">Valeur convertie reçue chaque mois, avec la date de la remise. Les mois du récap sont repris automatiquement ; ajoutez à la main les mois manquants.</p>
+    <label for="imp-an">Année</label><select id="imp-an"></select>
+    <label for="imp-nom">Nom du bénéficiaire (facultatif, imprimé)</label><input id="imp-nom" autocomplete="name">
+    <div id="imp-liste" style="margin-top:10px"></div>
+    <label for="imp-mois">Modifier un mois : écrivez-le (ex. Janeiro 2027)</label><input id="imp-mois" autocomplete="off" autocapitalize="none" placeholder="Janeiro 2027">
+    <label for="imp-date">Date de la remise (JJ/MM/AAAA) – pour ajouter un mois</label><input id="imp-date" inputmode="numeric" placeholder="09/01/2026">
+    <label for="imp-val">Valeur reçue en R$ (« Valor da remessa ») · 0 = supprimer une ligne ajoutée à la main</label><input id="imp-val" inputmode="decimal">
+    <div class="rangee" style="margin-top:10px"><button id="imp-add">Ajouter / modifier</button><button id="imp-pdf" class="principal">Imprimer / PDF</button></div>
+    <div class="expl" id="imp-msg"></div>
+  </div>
+  <div class="carte">
+    <h2>Sauvegarde</h2>
+    <p class="expl">Vos données restent dans ce téléphone. Copiez la sauvegarde pour la garder (note, message à vous-même) et collez-la pour restaurer sur un autre appareil.</p>
+    <div class="rangee"><button id="b-copier">Copier la sauvegarde</button><button id="b-csv">Copier en CSV (Excel)</button></div>
+    <div class="rangee" style="margin-top:8px"><button id="b-fichier">Sauvegarder (choisir le dossier)</button><button id="b-choisir">Restaurer depuis un fichier…</button></div>
+    <input type="file" id="in-fichier" accept=".json,.txt,text/plain,application/json" style="display:none">
+    <label for="in-resto">Coller une sauvegarde ici pour restaurer</label>
+    <textarea id="in-resto" placeholder='{"cfg":…}'></textarea>
+    <div class="rangee"><button id="b-resto">Restaurer</button></div>
+    <div class="expl" id="sauv-msg"></div>
+  </div>
+</section>
+
+<div id="zone-imp"></div>
+<!-- ===================== CALCULETTE ===================== -->
+<section id="t-calc" class="onglet">
+  <div class="carte">
+    <div id="c-hist" class="sous"></div>
+    <div id="c-aff" aria-live="polite"></div>
+    <div class="grille" id="c-grille"></div>
+    <div class="rangee" style="margin-top:8px"><button id="c-egal" class="principal">=</button><button id="c-copier">Copier</button></div>
+  </div>
+</section>
+
+<!-- ===================== REGLAGES ===================== -->
+<section id="t-reg" class="onglet">
+  <div class="carte">
+    <h2>Mes réglages</h2>
+    <label for="g-pension">Retraite mensuelle (CHF)</label><input id="g-pension" inputmode="decimal">
+    <label for="g-marge">Marge de la Caisse sur CHF → USD (%)</label><input id="g-marge" inputmode="decimal">
+    <label for="g-ecart">Écart du Banco do Brasil (R$ sous le marché, par dollar)</label><input id="g-ecart" inputmode="decimal">
+    <label for="g-iof">IOF (%)</label><input id="g-iof" inputmode="decimal">
+    <label for="g-date">Date de l'ordre (« auto » ou JJ/MM/AAAA)</label><input id="g-date" autocapitalize="off" autocorrect="off">
+    <label for="g-theme">Thème</label>
+    <select id="g-theme"><option value="auto">Automatique</option><option value="clair">Clair</option><option value="sombre">Sombre</option>
+      <option value="violet">Violet minuit</option><option value="ocean">Océan</option></select>
+  </div>
+  <div class="carte">
+    <h2>Calendrier des ordres</h2>
+    <p class="expl">Une date par ligne (JJ/MM/AAAA). Au calendrier 2027, ajoutez ou remplacez les dates ici.</p>
+    <textarea id="g-cal" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
+    <label for="g-mult">Mois à montant multiplié (ex. 13e rente : 07/12/2026=2)</label>
+    <textarea id="g-mult" style="min-height:56px" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
+    <div class="rangee" style="margin-top:8px"><button id="g-save" class="principal">Enregistrer</button></div>
+    <div class="expl" id="g-msg"></div>
+  </div>
+  <div class="carte"><h2>À propos</h2>
+    <p class="expl">Estimation : les taux viennent d'AwesomeAPI (ou d'une source de secours). Le vrai résultat est celui de l'avis de la Caisse et du reçu du banco. Fonctionne sans connexion avec les derniers taux connus.</p>
+    <div class="expl" id="version"></div></div>
+</section>
+
+<nav>
+  <button data-t="calcul" class="on"><span class="ic">🧮</span>Calcul</button>
+  <button data-t="recap"><span class="ic">📊</span>Récap</button>
+  <button data-t="calc"><span class="ic">➕</span>Calculette</button>
+  <button data-t="reg"><span class="ic">⚙️</span>Réglages</button>
+</nav>
+
+<script>
+"use strict";
+/* ---------------------------------------------------------------- données et outils */
+const VERSION = "2.5 (20/11/2026 · relevé impôts)";
+const CAL2026 = ["08/01/2026","05/02/2026","05/03/2026","08/04/2026","07/05/2026","05/06/2026","07/07/2026",
+  "06/08/2026","07/09/2026","07/10/2026","06/11/2026","07/12/2026"];
+const DEF = {pension:0, marge:1.18, ecart:0.09, iof:0.38, dateOrdre:"auto", fige:null, figePour:null, theme:"auto",
+  mult:{"07/12/2026":2}};
+const MOIS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+const JOURS = ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
+const RECAP_DEPART = {};
+const $ = (s) => document.querySelector(s);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+let cfg = Object.assign({}, DEF, store.get("cr_cfg", {}));
+let cal = store.get("cr_cal", CAL2026);
+let recap = store.get("cr_recap", null) || JSON.parse(JSON.stringify(RECAP_DEPART));
+let taux = store.get("cr_taux", null);            // {usd_brl, chf_usd, source, at}
+let enLigne = false;
+
+const nf = {};
+function fmt(n, d = 2){
+  if (n === null || n === undefined || !isFinite(n)) return "–";
+  nf[d] = nf[d] || new Intl.NumberFormat("fr-FR", {minimumFractionDigits:d, maximumFractionDigits:d});
+  return nf[d].format(n);
+}
+function num(s){
+  const v = parseFloat(String(s).replace(/[\s  ]/g, "").replace(",", "."));
+  return isFinite(v) ? v : NaN;
+}
+function parseD(s){
+  const m = /^\s*(\d{1,2})\/(\d{1,2})\/(\d{4})\s*$/.exec(String(s));
+  if (!m) return null;
+  const d = new Date(+m[3], +m[2] - 1, +m[1], 12);
+  return d.getMonth() === +m[2] - 1 ? d : null;
+}
+const fmtD = (d) => String(d.getDate()).padStart(2,"0") + "/" + String(d.getMonth()+1).padStart(2,"0") + "/" + d.getFullYear();
+const texteD = (d) => JOURS[d.getDay()] + " " + fmtD(d);
+function jourOuvre(d, n){
+  const r = new Date(d.getTime());
+  while (n > 0){ r.setDate(r.getDate() + 1); if (r.getDay() !== 0 && r.getDay() !== 6) n--; }
+  return r;
+}
+function aujourdhui(){ const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate(), 12); }
+function prochainOrdre(){
+  const dates = cal.map(parseD).filter(Boolean).sort((a, b) => a - b), t = aujourdhui();
+  for (const d of dates) if (jourOuvre(d, 2) >= t) return d;
+  return null;
+}
+function libMois(cle){ const d = parseD(cle); return MOIS[d.getMonth()] + " " + d.getFullYear(); }
+function multiplicateur(cle){ const m = parseFloat((cfg.mult || {})[cle]); return m > 0 ? m : 1; }
+function sauverCfg(){ store.set("cr_cfg", cfg); }
+function sauverRecap(){ store.set("cr_recap", recap); }
+
+/* ---------------------------------------------------------------- calcul */
+function calculer(c, chfUsd, usdBrl, pension){
+  const usdMarche = pension * chfUsd;
+  const usdRecu = usdMarche * (1 - c.marge / 100);
+  const tauxBb = usdBrl - c.ecart;
+  const converti = usdRecu * tauxBb;
+  const iof = converti * c.iof / 100;
+  const net = converti - iof;
+  const ideal = usdMarche * usdBrl;
+  return {pension, usdMarche, usdRecu, perteCaisseUsd: usdMarche - usdRecu, tauxCaisse: usdRecu / pension, brlMarche: usdRecu * usdBrl,
+    tauxBb, converti, perteBb: usdRecu * c.ecart, ecartPct: c.ecart / usdBrl * 100, iof, net, ideal,
+    perteCaisseBrl: (usdMarche - usdRecu) * usdBrl, perteTotal: ideal - net, perteTotalPct: (ideal - net) / ideal * 100};
+}
+
+/* ---------------------------------------------------------------- taux en ligne */
+function avecDelai(promesse, ms){
+  return new Promise((ok, ko) => {
+    const t = setTimeout(() => ko(new Error("délai dépassé")), ms);
+    promesse.then((v) => { clearTimeout(t); ok(v); }, (e) => { clearTimeout(t); ko(e); });
+  });
+}
+function xhrJSON(url){
+  return new Promise((ok, ko) => {
+    try{
+      const x = new XMLHttpRequest();
+      x.open("GET", url); x.timeout = 9000;
+      x.onload = () => { try{ if (x.status >= 200 && x.status < 300) ok(JSON.parse(x.responseText)); else ko(new Error("HTTP " + x.status)); }catch(e){ ko(e); } };
+      x.onerror = () => ko(new Error("réseau bloqué (XHR)")); x.ontimeout = () => ko(new Error("délai dépassé (XHR)"));
+      x.send();
+    }catch(e){ ko(e); }
+  });
+}
+async function getJSON(url){
+  // fetch simple (sans options : certains lecteurs integres refusent les options), puis XMLHttpRequest en secours
+  try{
+    const r = await avecDelai(fetch(url), 9000);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return await r.json();
+  }catch(e1){
+    try{ return await xhrJSON(url); }
+    catch(e2){ throw new Error((e1 && e1.message ? e1.message : e1) + " / " + (e2 && e2.message ? e2.message : e2)); }
+  }
+}
+const SOURCES = [
+  async () => {
+    const j = await getJSON("https://economia.awesomeapi.com.br/json/last/USD-BRL,CHF-BRL");
+    const milieu = (o) => { const b = parseFloat(o.bid), a = parseFloat(o.ask); return a >= b && b > 0 ? (a + b) / 2 : b; };
+    const u = milieu(j.USDBRL), c = milieu(j.CHFBRL), r = {usd_brl: u, chf_usd: c / u, source: "AwesomeAPI"};
+    const pu = parseFloat(j.USDBRL.pctChange), pc = parseFloat(j.CHFBRL.pctChange);
+    if (isFinite(pu)){ r.usd_pct = pu; r.usd_haut = parseFloat(j.USDBRL.high); r.usd_bas = parseFloat(j.USDBRL.low); }
+    if (isFinite(pu) && isFinite(pc)) r.chf_pct = ((1 + pc / 100) / (1 + pu / 100) - 1) * 100;
+    return r;
+  },
+  async () => {
+    const j = await getJSON("https://open.er-api.com/v6/latest/USD");
+    return {usd_brl: j.rates.BRL, chf_usd: 1 / j.rates.CHF, source: "open.er-api.com"};
+  },
+  async () => {
+    const j = await getJSON("https://api.frankfurter.app/latest?from=USD&to=BRL,CHF");
+    return {usd_brl: j.rates.BRL, chf_usd: 1 / j.rates.CHF, source: "Frankfurter (BCE)"};
+  }
+];
+let enCours = false, diagnostic = "";
+async function actualiser(force){
+  if (enCours) return;
+  if (force !== true && taux && taux.manuel && Date.now() - taux.at < 60 * 60 * 1000){ afficher(); return; }  // taux saisis a la main : gardes 60 min
+  enCours = true; $("#b-act").disabled = true; setEtat("…", "");
+  let ok = null; const pannes = [];
+  for (const essai of [1, 2]){
+    for (const [i, src] of SOURCES.entries()){
+      try{
+        const t = await src();
+        if (t.usd_brl > 1 && t.usd_brl < 30 && t.chf_usd > 0.8 && t.chf_usd < 1.8){ ok = t; break; }
+        pannes.push("source " + (i + 1) + " : valeurs incohérentes");
+      }catch(e){ if (essai === 2) pannes.push("source " + (i + 1) + " : " + (e && e.message ? e.message : e)); }
+    }
+    if (ok) break;
+  }
+  diagnostic = ok ? "" : "Aucune source n'a répondu (" + pannes.join(" ; ") + "). Page ouverte depuis : " + location.protocol + "//"
+    + (location.host || "fichier local") + ". Si elle est ouverte dans WhatsApp ou l'aperçu de Fichiers, le réseau est souvent bloqué : "
+    + "ouvrez le fichier dans Safari depuis un site, ou saisissez les taux à la main.";
+  enCours = false; $("#b-act").disabled = false;
+  if (ok){ ok.at = Date.now(); taux = ok; store.set("cr_taux", taux); enLigne = true; }
+  else { enLigne = false; }
+  afficher();
+  if (ok){ await majHist(); dessiner(); }
+}
+function setEtat(txt, cls){ $("#etat-txt").textContent = txt; $("#pt").className = "pt " + cls; }
+
+/* ---------------------------------------------------------------- historique 30 jours et graphiques */
+let hist = store.get("cr_hist", null);
+async function serieAwesome(paire){
+  const l = await getJSON("https://economia.awesomeapi.com.br/json/daily/" + paire + "/30"), o = {};
+  for (const x of l){ const j = new Date(+x.timestamp * 1000).toISOString().slice(0, 10); if (!(j in o)) o[j] = parseFloat(x.bid); }
+  return o;
+}
+async function histAwesome(){
+  const u = await serieAwesome("USD-BRL"), c = await serieAwesome("CHF-BRL");
+  const j = Object.keys(u).filter((k) => k in c).sort();
+  if (j.length < 5) throw new Error("historique trop court");
+  return {usd: j.map((k) => u[k]), chf: j.map((k) => c[k] / u[k])};
+}
+async function histFrankfurter(){
+  const fin = new Date(), deb = new Date(Date.now() - 34 * 86400000), iso = (d) => d.toISOString().slice(0, 10);
+  const d = await getJSON("https://api.frankfurter.app/" + iso(deb) + ".." + iso(fin) + "?from=USD&to=BRL,CHF");
+  const j = Object.keys(d.rates).filter((k) => d.rates[k].BRL && d.rates[k].CHF).sort();
+  if (j.length < 5) throw new Error("historique trop court");
+  return {usd: j.map((k) => d.rates[k].BRL), chf: j.map((k) => 1 / d.rates[k].CHF)};
+}
+async function majHist(){
+  if (hist && Date.now() - hist.at < 3 * 3600 * 1000) return;
+  for (const src of [histAwesome, histFrankfurter]){
+    try{ const h = await src(); h.at = Date.now(); hist = h; store.set("cr_hist", hist); return; }catch(e){ /* source suivante */ }
+  }
+}
+function fmtPct(x){ return (x >= 0 ? "+" : "−") + fmt(Math.abs(x), 2) + " %"; }
+function courbe(cv, titre, serie, pct){
+  const css = getComputedStyle(document.documentElement), c = (n) => css.getPropertyValue(n).trim() || "#888";
+  const dpr = window.devicePixelRatio || 1, L = cv.clientWidth || 300, H = 112;
+  cv.width = Math.round(L * dpr); cv.height = Math.round(H * dpr);
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, L, H);
+  g.font = "12px -apple-system, Segoe UI, sans-serif"; g.textBaseline = "top";
+  g.fillStyle = c("--sous"); g.textAlign = "left"; g.fillText(titre, 10, 8);
+  if (!serie || serie.length < 2){ g.fillText("Historique indisponible (pas de connexion)", 10, 50); return; }
+  const lo = Math.min(...serie), hi = Math.max(...serie), amp = (hi - lo) || 1, m = 8, top = 32, bas = H - 22;
+  const px = (i) => m + i * (L - 2 * m) / (serie.length - 1), py = (v) => top + (hi - v) / amp * (bas - top);
+  g.beginPath(); g.moveTo(px(0), bas); serie.forEach((v, i) => g.lineTo(px(i), py(v))); g.lineTo(px(serie.length - 1), bas); g.closePath();
+  g.fillStyle = c("--bouton"); g.fill();
+  g.beginPath(); serie.forEach((v, i) => (i ? g.lineTo(px(i), py(v)) : g.moveTo(px(i), py(v))));
+  g.strokeStyle = c("--accent"); g.lineWidth = 2; g.stroke();
+  g.beginPath(); g.arc(px(serie.length - 1), py(serie[serie.length - 1]), 3.5, 0, 7); g.fillStyle = c("--accent"); g.fill();
+  g.fillStyle = c("--fg"); g.textAlign = "right"; g.font = "bold 13px -apple-system, Segoe UI, sans-serif";
+  g.fillText(fmt(serie[serie.length - 1], 4) + (pct !== undefined ? "   " + fmtPct(pct) : ""), L - 10, 7);
+  g.fillStyle = c("--sous"); g.font = "11px -apple-system, Segoe UI, sans-serif"; g.textBaseline = "bottom";
+  g.textAlign = "left"; g.fillText("min " + fmt(lo, 4), 10, H - 4); g.textAlign = "right"; g.fillText("max " + fmt(hi, 4), L - 10, H - 4);
+}
+function dessiner(){
+  if (!taux) return;
+  courbe($("#cv-chf"), "CHF → USD · 30 jours", hist ? hist.chf.concat([taux.chf_usd]) : null, taux.chf_pct);
+  courbe($("#cv-usd"), "USD → BRL · 30 jours", hist ? hist.usd.concat([taux.usd_brl]) : null, taux.usd_pct);
+}
+window.addEventListener("resize", dessiner);
+
+/* ---------------------------------------------------------------- recapitulatif : logique */
+function analyser(rec){
+  const d = rec.reel || rec.est;
+  if (!d) return null;
+  const p = +rec.pension_chf, a = +rec.chf_usd_marche, b = +rec.usd_brl_marche;
+  const usdRecu = +d.usd_recu, tauxBb = +d.taux_bb, net = +d.brl_net;
+  if (!(p > 0 && a > 0 && b > 0 && usdRecu > 0 && tauxBb > 0)) return null;
+  const usdMarche = p * a, marge = usdMarche - usdRecu, converti = usdRecu * tauxBb, ecart = b - tauxBb;
+  const iof = converti - net, ideal = usdMarche * b, couts = ideal - net;
+  return {estime: !rec.reel, pension: p, a, usdMarche, usdRecu, tauxCaisse: usdRecu / p, margeUsd: marge,
+    margePct: marge / usdMarche * 100, b, tauxBb, ecart, ecartPct: ecart / b * 100, converti, iof,
+    iofPct: converti ? iof / converti * 100 : 0, net, ideal, couts, coutsPct: couts / ideal * 100,
+    caisseBrl: marge * b, bbBrl: usdRecu * ecart,
+    ecartEstim: rec.reel && rec.est ? rec.est.brl_net - net : null};
+}
+function verifierReel(usdRecu, t, net, iofPct){
+  const converti = usdRecu * t;
+  if (!(converti > 0 && net > 0)) return {taux: t, msg: ""};
+  const iofReel = (converti - net) / converti * 100;
+  if (Math.abs(iofReel - iofPct) <= 0.05) return {taux: t, msg: ""};
+  if (Math.abs(iofReel) <= 0.05){
+    const c = net / (1 - iofPct / 100) / usdRecu;
+    return {taux: c, msg: "Le taux saisi ressemble au VET (IOF compris). Remplacé par la vraie « Taxa de câmbio » " + c.toFixed(6) + "."};
+  }
+  return {taux: t, msg: "Attention : avec ces chiffres l'IOF vaut " + iofReel.toFixed(2) + " % au lieu de " + iofPct.toFixed(2) + " %. Vérifiez."};
+}
+function clesTriees(){
+  return Object.keys(recap).filter(parseD).sort((x, y) => parseD(x) - parseD(y));
+}
+function majEstimation(ordre, arrivee, pension, chfUsd, figee, usdBrl, r){
+  const cle = fmtD(ordre), rec = recap[cle];
+  if (rec && (rec.reel || aujourdhui() > arrivee)) return false;
+  const n = recap[cle] = rec || {};
+  Object.assign(n, {ordre: cle, arrivee: fmtD(arrivee), pension_chf: pension, chf_usd_marche: chfUsd, chf_fige: !!figee,
+    usd_brl_marche: usdBrl, est: {usd_recu: r.usdRecu, taux_bb: r.tauxBb, brl_net: r.net}});
+  return true;
+}
+
+/* ---------------------------------------------------------------- affichage : onglet Calcul */
+function ligne(l, v, cls){ return '<div class="ligne"><span>' + l + '</span><b' + (cls ? ' class="' + cls + '"' : '') + '>' + v + '</b></div>'; }
+function afficher(){
+  // barre d'etat
+  if (taux){
+    const min = Math.round((Date.now() - taux.at) / 60000);
+    const quand = min < 1 ? "à l'instant" : min < 60 ? "il y a " + min + " min" : "il y a " + Math.round(min / 60) + " h";
+    setEtat(enLigne ? "En ligne · " + quand : (taux.source === "Saisie manuelle" ? "Taux saisis à la main · gardés 60 min · " : "Hors ligne · taux ") + quand, enLigne ? "ok" : "ko");
+    $("#r-chf").textContent = fmt(taux.chf_usd, 4);
+    $("#r-usd").textContent = fmt(taux.usd_brl, 4);
+    const mo = [];
+    if (taux.usd_pct !== undefined) mo.push("Dollar aujourd'hui : " + fmtPct(taux.usd_pct) + (taux.usd_haut ? " (haut " + fmt(taux.usd_haut, 4) + " · bas " + fmt(taux.usd_bas, 4) + ")" : ""));
+    if (taux.chf_pct !== undefined) mo.push("Franc suisse : " + fmtPct(taux.chf_pct) + " face au dollar");
+    $("#r-var").textContent = mo.join(" | ");
+    $("#r-src").textContent = (enLigne || !diagnostic) ? "Source : " + taux.source : "Source : " + taux.source + " (dernier taux connu). " + diagnostic;
+    $("#maj").textContent = new Date(taux.at).toLocaleTimeString("fr-FR", {hour: "2-digit", minute: "2-digit"});
+  } else {
+    setEtat(enLigne ? "En ligne" : "Pas de taux", "ko");
+    $("#r-src").textContent = diagnostic;
+    $("#sortie").innerHTML = '<div class="alerte">Aucun taux disponible pour l\'instant. Connectez-vous à internet puis touchez « ↻ Taux », ou saisissez les taux à la main.</div>';
+    return;
+  }
+  // ordre
+  const auto = String(cfg.dateOrdre).trim().toLowerCase() === "auto" || cfg.dateOrdre === "";
+  const ordre = auto ? prochainOrdre() : parseD(cfg.dateOrdre);
+  if (!ordre){
+    $("#r-ordre").textContent = "";
+    $("#sortie").innerHTML = '<div class="alerte">Calendrier terminé ou date invalide. Ajoutez les dates 2027 dans Réglages, ou écrivez la date de l\'ordre (JJ/MM/AAAA).</div>';
+    return;
+  }
+  const cle = fmtD(ordre), arrivee = jourOuvre(ordre, 2), mult = multiplicateur(cle);
+  const pension = cfg.pension * mult;
+  $("#r-ordre").innerHTML = "Ordre de la Caisse : <b>" + texteD(ordre) + "</b> (minuit suisse) · argent attendu : <b>" + texteD(arrivee) + "</b>"
+    + (mult !== 1 ? "<br>Montant × " + mult + " (13e rente) = " + fmt(pension) + " CHF" : "");
+  // taux CHF->USD
+  const figeOk = cfg.fige && cfg.figePour === cle;
+  const chfUsd = figeOk ? cfg.fige : taux.chf_usd;
+  $("#fige-etat").textContent = figeOk ? "Taux figé pour cet ordre : " + fmt(cfg.fige, 4) + ". Le taux en direct n'est plus utilisé."
+    : "Pas de taux figé pour cet ordre : l'estimation suit le taux du moment (" + fmt(taux.chf_usd, 4) + ").";
+  let av = "";
+  if (!figeOk){
+    const finOrdre = new Date(ordre.getFullYear(), ordre.getMonth(), ordre.getDate() + 1, 12);
+    if (aujourdhui() > ordre) av = "L'ordre du " + fmtD(ordre) + " est passé : le vrai taux est celui de minuit suisse ce jour-là. Saisissez-le ci-dessus pour une estimation exacte.";
+  }
+  $("#avert").innerHTML = av ? '<div class="alerte">' + av + "</div>" : "";
+  const c = {marge: cfg.marge, ecart: cfg.ecart, iof: cfg.iof};
+  const r = calculer(c, chfUsd, taux.usd_brl, pension);
+  try{ if (majEstimation(ordre, arrivee, pension, chfUsd, figeOk, taux.usd_brl, r)) sauverRecap(); }catch(e){}
+  $("#sortie").innerHTML =
+    '<div class="carte"><h2>1 · Caisse suisse <span class="sous">CHF → USD</span></h2>'
+    + '<p class="expl">La Caisse convertit vos francs en dollars avec sa propre marge, au taux de minuit suisse.</p>'
+    + ligne("Retraite", fmt(r.pension) + " CHF")
+    + ligne("Au taux du marché (" + fmt(chfUsd, 4) + ")", fmt(r.usdMarche) + " USD")
+    + ligne("Marge de la Caisse (" + fmt(cfg.marge) + " %)", "− " + fmt(r.perteCaisseUsd) + " USD", "perte")
+    + ligne("Taux réellement appliqué", fmt(r.tauxCaisse, 4))
+    + ligne("Dollars envoyés", fmt(r.usdRecu) + " USD") + "</div>"
+    + '<div class="carte"><h2>2 · Banco do Brasil <span class="sous">USD → BRL</span></h2>'
+    + '<p class="expl">Le banco convertit à son propre taux, environ ' + fmt(cfg.ecart) + ' R$ sous le marché par dollar.</p>'
+    + ligne("Dollar du marché", fmt(taux.usd_brl, 4) + " R$")
+    + ligne("Taux appliqué par le banco", fmt(r.tauxBb, 4) + " R$")
+    + ligne("Perte du banco (" + fmt(r.ecartPct) + " %)", "− " + fmt(r.perteBb) + " R$", "perte")
+    + ligne("Valeur convertie", fmt(r.converti) + " R$") + "</div>"
+    + '<div class="carte"><h2>3 · IOF <span class="sous">impôt</span></h2>'
+    + '<p class="expl">Impôt brésilien sur l\'entrée d\'argent, calculé sur la valeur convertie.</p>'
+    + ligne("IOF (" + fmt(cfg.iof) + " %)", "− " + fmt(r.iof) + " R$", "perte") + "</div>"
+    + '<div class="carte total"><h2>Vous recevez</h2><div class="gros">' + fmt(r.net) + ' R$</div>'
+    + (mult !== 1 ? (() => { const r1 = calculer(c, chfUsd, taux.usd_brl, cfg.pension);
+        return '<p class="mois1"><b>Net d\'un seul mois : ' + fmt(r1.net) + ' R$</b> (' + fmt(cfg.pension) + ' CHF). Le reste, ' + fmt(r.net - r1.net) + ' R$, vient du 13e mois.</p>'; })() : "")
+    + '<p class="expl">Sans aucun frais : ' + fmt(r.ideal) + ' R$. Frais totaux : <b class="perte">' + fmt(r.perteTotal) + ' R$ (' + fmt(r.perteTotalPct) + ' %)</b>'
+    + ' dont Caisse ≈ ' + fmt(r.perteCaisseBrl) + ' R$, banco ' + fmt(r.perteBb) + ' R$, IOF ' + fmt(r.iof) + ' R$.</p></div>';
+  window.__dernier = {r, chfUsd, pension};
+  dessiner();
+  objectif();
+}
+function objectif(){
+  const cible = num($("#in-obj").value), d = window.__dernier;
+  if (!d || !(cible > 0)){ $("#obj-res").textContent = ""; return; }
+  const b = cible / (d.r.usdRecu * (1 - cfg.iof / 100)) + cfg.ecart;
+  const diff = (b / taux.usd_brl - 1) * 100;
+  $("#obj-res").innerHTML = "Pour " + fmt(cible) + " R$ nets avec " + fmt(d.r.usdRecu) + " USD reçus, il faut un dollar à <b>" + fmt(b, 4)
+    + " R$</b> (aujourd'hui " + fmt(taux.usd_brl, 4) + ", soit " + (diff >= 0 ? "+" : "") + fmt(diff, 1) + " %).";
+}
+
+/* ---------------------------------------------------------------- onglet Recap */
+let ouvertes = {};
+function detailMois(cle, a, rec){
+  return "<p class=\"expl\">Ordre " + cle + ", arrivée prévue " + (rec.arrivee || "?")
+    + (rec.arrivee_reelle ? ", remise reçue le " + rec.arrivee_reelle : "") + " · " + (a.estime ? "estimation" : "chiffres réels") + "</p>"
+    + ligne("1) Caisse : marché " + fmt(a.a, 4), fmt(a.usdMarche) + " USD")
+    + ligne("Reçu " + fmt(a.usdRecu) + " USD · taux " + fmt(a.tauxCaisse, 4), "marge " + fmt(a.margePct) + " %", "perte")
+    + ligne("2) Banco : marché " + fmt(a.b, 4) + " · appliqué " + fmt(a.tauxBb, 4), "écart " + fmt(a.ecart, 4) + " R$ (" + fmt(a.ecartPct) + " %)", "perte")
+    + ligne("3) IOF", fmt(a.iof) + " R$ (" + fmt(a.iofPct) + " %)", "perte")
+    + ligne("Net reçu / sans frais", fmt(a.net) + " / " + fmt(a.ideal) + " R$")
+    + ligne("Coûts totaux", fmt(a.couts) + " R$ (" + fmt(a.coutsPct) + " %)", "perte")
+    + (a.ecartEstim !== null ? ligne("Écart estimation / réel", fmt(a.ecartEstim) + " R$") : "");
+}
+function formulaire(cle, rec){
+  const r = rec.reel || {}, v = (x, d) => x === undefined || x === null ? "" : fmt(x, d);
+  return '<div data-cle="' + cle + '"><p class="expl"><b>Chiffres réels</b> (avis de la Caisse et reçu du banco)</p>'
+    + '<label>USD reçus (avis de la Caisse)</label><input class="f-usd" inputmode="decimal" value="' + v(r.usd_recu, 2) + '">'
+    + '<label>« Taxa de câmbio » du reçu (pas le VET)</label><input class="f-tb" inputmode="decimal" value="' + v(r.taux_bb, 6) + '">'
+    + '<label>« Valor da remessa » (net, après IOF)</label><input class="f-net" inputmode="decimal" value="' + v(r.brl_net, 2) + '">'
+    + '<label>Dollar du marché à l\'arrivée (R$)</label><input class="f-b" inputmode="decimal" value="' + v(rec.usd_brl_marche, 4) + '">'
+    + '<label>CHF → USD du marché à minuit suisse</label><input class="f-a" inputmode="decimal" value="' + v(rec.chf_usd_marche, 4) + '">'
+    + '<label>Date de la remise reçue (JJ/MM/AAAA, facultatif)</label><input class="f-d" inputmode="numeric" placeholder="JJ/MM/AAAA" value="' + (rec.arrivee_reelle || "") + '">'
+    + '<div class="rangee" style="margin-top:10px"><button class="principal f-ok">Enregistrer les chiffres réels</button></div>'
+    + '<div class="expl f-msg"></div></div>';
+}
+function rendreRecap(){
+  const reels = clesTriees().map((k) => analyser(recap[k]) && recap[k].reel ? analyser(recap[k]) : null).filter(Boolean);
+  if (reels.length){
+    const n = reels.length, som = (f) => reels.reduce((s, x) => s + f(x), 0);
+    $("#rc-moy").innerHTML = "<h2>Moyenne sur " + n + " mois réel(s)</h2>"
+      + ligne("Marge de la Caisse", fmt(som((x) => x.margePct) / n) + " %")
+      + ligne("Banco sous le marché, par dollar", fmt(som((x) => x.ecart) / n, 4) + " R$")
+      + ligne("Coûts totaux", fmt(som((x) => x.couts)) + " R$ (" + fmt(som((x) => x.couts) / som((x) => x.ideal) * 100) + " %)");
+  } else $("#rc-moy").innerHTML = '<p class="expl">Pas encore de mois réel : saisissez les chiffres réels pour voir les moyennes.</p>';
+  let h = "";
+  for (const cle of clesTriees().reverse()){
+    const rec = recap[cle], a = analyser(rec);
+    if (!a) continue;
+    h += '<details data-cle="' + cle + '"' + (ouvertes[cle] ? " open" : "") + "><summary><span>" + libMois(cle)
+      + ' <span class="badge ' + (a.estime ? "" : "reel") + '">' + (a.estime ? "estimé" : "réel") + "</span></span><b>"
+      + fmt(a.net) + " R$</b></summary>" + detailMois(cle, a, rec) + formulaire(cle, rec) + "</details>";
+  }
+  $("#rc-liste").innerHTML = '<details id="mm"' + (mmOuvert ? " open" : "") + '><summary><b>Détail mois par mois</b> <span class="sous">(chiffres réels)</span></summary>' + h + "</details>";
+}
+let mmOuvert = false;
+$("#rc-liste").addEventListener("toggle", (e) => { if (e.target.id === "mm") mmOuvert = e.target.open; }, true);
+$("#rc-liste").addEventListener("toggle", (e) => { if (e.target.dataset && e.target.dataset.cle) ouvertes[e.target.dataset.cle] = e.target.open; }, true);
+$("#rc-liste").addEventListener("click", (e) => {
+  if (!e.target.classList.contains("f-ok")) return;
+  const box = e.target.closest("[data-cle]"), cle = box.dataset.cle, q = (s) => box.querySelector(s), msg = q(".f-msg");
+  const n = {usd: num(q(".f-usd").value), tb: num(q(".f-tb").value), net: num(q(".f-net").value), b: num(q(".f-b").value), a: num(q(".f-a").value)};
+  if (Object.values(n).some((x) => !(x > 0))){ msg.textContent = "Chiffres invalides : remplissez les 5 cases avec des nombres positifs."; return; }
+  const txt = q(".f-d").value.trim(); let dr = null;
+  if (txt){ dr = parseD(txt); if (!dr){ msg.textContent = "Date de remise invalide : JJ/MM/AAAA ou vide."; return; } }
+  const v = verifierReel(n.usd, n.tb, n.net, cfg.iof);
+  const rec = recap[cle];
+  rec.reel = {usd_recu: n.usd, taux_bb: v.taux, brl_net: n.net};
+  rec.usd_brl_marche = n.b; rec.chf_usd_marche = n.a;
+  if (dr) rec.arrivee_reelle = fmtD(dr); else delete rec.arrivee_reelle;
+  sauverRecap(); ouvertes[cle] = true; rendreRecap();
+  const m2 = $('#rc-liste [data-cle="' + cle + '"] .f-msg'); if (m2) m2.textContent = "Chiffres réels enregistrés. " + v.msg;
+});
+function csv(){
+  const col = ["Mois","Ordre","Arrivée","Type","Retraite CHF","CHF→USD marché","USD marché","USD reçus","Taux Caisse","Marge Caisse USD",
+    "Marge Caisse %","USD→BRL marché","Taux banco","Écart banco R$/USD","Écart banco %","Converti R$","IOF R$","Reçu net R$","Sans frais R$",
+    "Coûts Caisse R$","Coûts banco R$","Coûts totaux R$","Coûts totaux %"];
+  const f = (x, d = 2) => String(x.toFixed(d)).replace(".", ",");
+  const lignes = [col.join(";")];
+  for (const cle of clesTriees()){
+    const rec = recap[cle], a = analyser(rec); if (!a) continue;
+    lignes.push([libMois(cle), cle, rec.arrivee_reelle || rec.arrivee || "", a.estime ? "estimé" : "réel", f(a.pension), f(a.a, 4), f(a.usdMarche),
+      f(a.usdRecu), f(a.tauxCaisse, 4), f(a.margeUsd), f(a.margePct), f(a.b, 4), f(a.tauxBb, 4), f(a.ecart, 4), f(a.ecartPct), f(a.converti),
+      f(a.iof), f(a.net), f(a.ideal), f(a.caisseBrl), f(a.bbBrl), f(a.couts), f(a.coutsPct)].join(";"));
+  }
+  return lignes.join("\r\n");
+}
+async function copier(texte, cible){
+  try{ await navigator.clipboard.writeText(texte); cible.textContent = "Copié dans le presse-papiers."; }
+  catch(e){
+    const z = $("#in-resto"); z.value = texte; z.focus(); z.select();
+    cible.textContent = "Copie automatique refusée : le texte est dans la case ci-dessous, sélectionnez-le et copiez-le.";
+  }
+}
+$("#b-copier").onclick = () => copier(JSON.stringify({v: 1, cfg, cal, recap, imp}), $("#sauv-msg"));
+$("#b-csv").onclick = () => copier(csv(), $("#sauv-msg"));
+$("#b-fichier").onclick = async () => {
+  const msg = $("#sauv-msg"), nom = "sauvegarde_retraite_" + new Date().toISOString().slice(0, 10) + ".json";
+  const texte = JSON.stringify({v: 1, cfg, cal, recap, imp});
+  const telecharger = () => {
+    const blob = new Blob([texte], {type: "application/json"});
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nom;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    msg.textContent = "Fichier « " + nom + " » téléchargé (dossier réglé dans Safari, souvent Téléchargements).";
+  };
+  try{
+    const f = new File([texte], nom, {type: "application/json"});
+    if (navigator.canShare && navigator.canShare({files: [f]})){
+      await navigator.share({files: [f], title: nom});   // feuille de partage : « Enregistrer dans Fichiers » = choix du dossier
+      msg.textContent = "Si vous avez choisi « Enregistrer dans Fichiers », la sauvegarde est dans le dossier que vous avez sélectionné.";
+    } else telecharger();
+  }catch(e){
+    if (e && e.name === "AbortError") msg.textContent = "Sauvegarde annulée.";
+    else { try{ telecharger(); }catch(e2){ msg.textContent = "Enregistrement impossible ici (ouvrez la page dans Safari) : utilisez « Copier la sauvegarde »."; } }
+  }
+};
+$("#b-choisir").onclick = () => $("#in-fichier").click();
+$("#in-fichier").onchange = () => {
+  const f = $("#in-fichier").files[0], msg = $("#sauv-msg"); if (!f) return;
+  const r = new FileReader();
+  r.onload = () => { $("#in-resto").value = String(r.result); msg.textContent = "Fichier « " + f.name + " » lu. Vérification…"; $("#b-resto").click(); $("#in-fichier").value = ""; };
+  r.onerror = () => { msg.textContent = "Lecture du fichier impossible."; };
+  r.readAsText(f);
+};
+$("#b-resto").onclick = () => {
+  const msg = $("#sauv-msg");
+  try{
+    const d = JSON.parse($("#in-resto").value);
+    if (!d || typeof d !== "object" || !d.recap) throw new Error("x");
+    if (!d.cfg){   // texte venant du PC : on fusionne (rien n'est effacé)
+      if (!confirm("Ajouter les mois et lignes d'impôts venant du PC à ce téléphone ?")) return;
+      let n = 0;
+      for (const k of Object.keys(d.recap)){ const r = d.recap[k]; if (r && r.ordre && (!recap[k] || r.reel)){ recap[k] = r; n++; } }
+      if (d.imp && d.imp.manuels) Object.assign(imp.manuels, d.imp.manuels);
+      if (d.imp && d.imp.nom && !imp.nom) imp.nom = d.imp.nom;
+      sauverRecap(); sauverImp(); rendreRecap(); rendreImp(); afficher();
+      msg.textContent = "Importé depuis le PC : " + n + " mois."; return;
+    }
+    if (!confirm("Remplacer les données de ce téléphone par cette sauvegarde ?")) return;
+    cfg = Object.assign({}, DEF, d.cfg); if (Array.isArray(d.cal)) cal = d.cal; recap = d.recap; if (d.imp && typeof d.imp === "object") imp = d.imp;
+    sauverCfg(); sauverImp(); store.set("cr_cal", cal); sauverRecap(); remplirReglages(); appliquerTheme(); rendreRecap(); rendreImp(); afficher();
+    msg.textContent = "Sauvegarde restaurée.";
+  }catch(e){ msg.textContent = "Sauvegarde illisible : copiez-la en entier depuis « Copier la sauvegarde »."; }
+};
+
+/* saisie des dates : les « / » se mettent tout seuls */
+function formaterDate(v){
+  const c = String(v).replace(/\D/g, "").slice(0, 8);
+  return c.length > 4 ? c.slice(0, 2) + "/" + c.slice(2, 4) + "/" + c.slice(4) : c.length > 2 ? c.slice(0, 2) + "/" + c.slice(2) : c;
+}
+document.addEventListener("input", (e) => {
+  const t = e.target;
+  if (!t || !(t.id === "imp-date" || (t.classList && t.classList.contains("f-d")))) return;
+  if (e.inputType && e.inputType.startsWith("delete")) return;
+  t.value = formaterDate(t.value);
+});
+/* ---------------------------------------------------------------- impots : releve en portugais */
+const MESES_PT = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+let imp = store.get("cr_imp", null) || {nom: "", manuels: {}};
+function sauverImp(){ store.set("cr_imp", imp); }
+const nfBr = new Intl.NumberFormat("pt-BR", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function lignesImp(annee){
+  const L = [];
+  for (const cle of clesTriees()){
+    const rec = recap[cle], a = analyser(rec); if (!a) continue;
+    const d = parseD(rec.arrivee_reelle || rec.arrivee || cle);
+    if (d && d.getFullYear() === annee) L.push({d, valor: a.net, estime: a.estime, manuel: false});
+  }
+  for (const k of Object.keys(imp.manuels)){   // une ligne saisie a la main remplace celle du recap a la meme date
+    const d = parseD(k), v = +imp.manuels[k];
+    if (!(d && d.getFullYear() === annee && v > 0)) continue;
+    const i = L.findIndex((x) => fmtD(x.d) === fmtD(d));
+    if (i >= 0) L.splice(i, 1);
+    L.push({d, valor: v, estime: false, manuel: true});
+  }
+  return L.sort((x, y) => x.d - y.d);
+}
+function anneesImp(){
+  const A = new Set([aujourdhui().getFullYear(), aujourdhui().getFullYear() + 1]);
+  for (const cle of clesTriees()){ const r = recap[cle]; if (analyser(r)){ const d = parseD(r.arrivee_reelle || r.arrivee || cle); if (d) A.add(d.getFullYear()); } }
+  for (const k of Object.keys(imp.manuels)){ const d = parseD(k); if (d) A.add(d.getFullYear()); }
+  return [...A].sort();
+}
+function rendreImp(){
+  const sel = $("#imp-an"), garde = sel.value || String(aujourdhui().getFullYear());
+  sel.innerHTML = anneesImp().map((a) => '<option' + (String(a) === garde ? " selected" : "") + ">" + a + "</option>").join("");
+  const an = +sel.value, L = lignesImp(an), tot = L.reduce((s, x) => s + x.valor, 0);
+  $("#imp-nom").value = imp.nom || $("#imp-nom").value;
+  $("#imp-liste").innerHTML = '<div class="ligne"><span><b>Total ' + an + "</b> (" + L.length + " remise" + (L.length > 1 ? "s" : "") + ')</span><b>' + fmt(tot) + " R$</b></div>";
+}
+function htmlImp(an){
+  const L = lignesImp(an), tot = L.reduce((s, x) => s + x.valor, 0), reais = L.filter((x) => !x.estime).reduce((s, x) => s + x.valor, 0);
+  const lignes = L.length ? L.map((x) => "<tr><td>" + MESES_PT[x.d.getMonth()].replace(/^./, (c) => c.toUpperCase()) + '</td><td class="c">'
+    + fmtD(x.d) + '</td><td class="r">R$ ' + nfBr.format(x.valor) + (x.estime ? " *" : "") + "</td></tr>").join("")
+    : '<tr><td colspan="3" class="c">Nenhum recebimento registrado neste ano.</td></tr>';
+  const nome = (imp.nom || "").trim();
+  return "<h1>RENDIMENTO " + an + "</h1><h3>Aposentadoria AVS (Suíça) – valores convertidos e creditados no Brasil</h3>"
+    + (nome ? "<p><b>Beneficiário:</b> " + esc(nome) + "</p>" : "")
+    + '<table><thead><tr><th>Mês</th><th class="c">Data da remessa</th><th class="r">Valor convertido (R$)</th></tr></thead><tbody>' + lignes
+    + '</tbody><tfoot><tr><td colspan="2">Total recebido em ' + an + '</td><td class="r">R$ ' + nfBr.format(tot) + "</td></tr></tfoot></table>"
+    + (L.some((x) => x.estime) ? "<p>* Valor estimado (a remessa ainda não foi confirmada com o comprovante do banco). Total apenas dos valores confirmados: R$ " + nfBr.format(reais) + ".</p>" : "")
+    + "<p>Valores em reais (R$) efetivamente creditados após a conversão de francos suíços (CHF) para dólares (USD) e de dólares para reais, já descontado o IOF. A data corresponde à da remessa recebida no Banco do Brasil. Em dezembro, o valor inclui a 13ª aposentadoria.</p>"
+    + "<p>Documento gerado em " + fmtD(aujourdhui()) + ".</p>";
+}
+$("#imp-an").onchange = rendreImp;
+$("#imp-nom").oninput = () => { imp.nom = $("#imp-nom").value; sauverImp(); };
+$("#imp-add").onclick = () => {
+  const d = parseD($("#imp-date").value.trim()), v = num($("#imp-val").value), m = $("#imp-msg");
+  if (d && v === 0){
+    if (imp.manuels[fmtD(d)] === undefined){ m.textContent = "Rien à supprimer à cette date (les mois du récap ne se suppriment pas : corrigez leur valeur)."; return; }
+    delete imp.manuels[fmtD(d)]; sauverImp(); $("#imp-date").value = ""; $("#imp-val").value = ""; $("#imp-mois").value = ""; rendreImp();
+    m.textContent = "Ligne du " + fmtD(d) + " supprimée."; return;
+  }
+  if (!d || !(v > 0)){ m.textContent = "Date (JJ/MM/AAAA) ou valeur invalide."; return; }
+  imp.manuels[fmtD(d)] = v; sauverImp();
+  $("#imp-an").value = String(d.getFullYear()); $("#imp-date").value = ""; $("#imp-val").value = ""; $("#imp-mois").value = "";
+  rendreImp(); $("#imp-an").value = String(d.getFullYear()); rendreImp(); m.textContent = "Enregistré : " + fmtD(d) + " → " + fmt(v) + " R$." + (store.get("cr_imp", null) ? "" : " ATTENTION : ce visualiseur ne garde pas les données (ouvrez le fichier dans Safari).");
+};
+const sansAccent = (t) => String(t).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const NOMS_MOIS = [["janeiro","janvier"],["fevereiro","fevrier"],["marco","mars"],["abril","avril"],["maio","mai"],["junho","juin"],
+  ["julho","juillet"],["agosto","aout"],["setembro","septembre"],["outubro","octobre"],["novembro","novembre"],["dezembro","decembre"]];
+$("#imp-mois").oninput = () => {
+  const t = sansAccent($("#imp-mois").value), m = $("#imp-msg");
+  const mot = (/[a-z]{3,}/.exec(t) || [""])[0], an = /(\d{4})/.exec(t);
+  if (!mot) return;
+  const idx = NOMS_MOIS.findIndex((n) => n.some((x) => x.startsWith(mot)));
+  if (idx < 0) return;
+  const annee = an ? +an[1] : +$("#imp-an").value;
+  const l = lignesImp(annee).find((x) => x.d.getMonth() === idx);
+  if (!l){   // mois pas encore enregistre (ex. 2027) : on vide les champs et on demande la date + la valeur
+    $("#imp-date").value = ""; $("#imp-val").value = "";
+    if (an) m.textContent = "Rien d'enregistré pour " + MOIS[idx] + " " + annee + " : tapez la date de la remise et la valeur, puis « Ajouter / modifier ».";
+    return;
+  }
+  $("#imp-date").value = fmtD(l.d); $("#imp-val").value = String(l.valor.toFixed(2)).replace(".", ",");
+  m.textContent = "Trouvé (" + annee + ") : remise du " + fmtD(l.d) + ". Corrigez la valeur puis appuyez sur « Ajouter / modifier ».";
+};
+function fermerApercu(){ const z = $("#zone-imp"); z.classList.remove("ouvert"); z.innerHTML = ""; document.body.classList.remove("imprime-imp"); }
+$("#imp-pdf").onclick = () => {   // 1) apercu a l'ecran, 2) impression seulement si on appuie sur le bouton
+  const z = $("#zone-imp");
+  z.innerHTML = '<div class="bar"><button id="ap-fermer">‹ Retour</button><button id="ap-imp" class="principal">Imprimer / PDF</button></div>' + htmlImp(+$("#imp-an").value);
+  z.classList.add("ouvert"); z.scrollTop = 0;
+  $("#ap-fermer").onclick = fermerApercu;
+  $("#ap-imp").onclick = () => {
+    document.body.classList.add("imprime-imp");
+    const fin = () => document.body.classList.remove("imprime-imp");
+    window.addEventListener("afterprint", fin, {once: true});
+    setTimeout(() => { try{ window.print(); }catch(e){ alert("Impression impossible ici : utilisez Partager › Imprimer."); } setTimeout(fin, 1500); }, 100);
+  };
+};
+
+/* ---------------------------------------------------------------- calculette */
+function evaluer(texte){
+  let t = String(texte).replace(/[\s  ]/g, "").replace(/,/g, ".").replace(/[×xX]/g, "*").replace(/÷/g, "/").replace(/−/g, "-");
+  if (!t) throw new Error("vide");
+  t = t.replace(/(\d+(?:\.\d+)?)([+-])(\d+(?:\.\d+)?)%/g, (m, a, o, b) => "(" + a + o + "(" + a + "*" + b + "/100))")
+       .replace(/(\d+(?:\.\d+)?)%/g, "($1/100)");
+  let i = 0;
+  const pk = () => t[i];
+  function expr(){ let v = terme(); while (pk() === "+" || pk() === "-"){ const o = t[i++], r = terme(); v = o === "+" ? v + r : v - r; } return v; }
+  function terme(){ let v = unaire(); while (pk() === "*" || pk() === "/"){ const o = t[i++], r = unaire(); if (o === "/" && r === 0) throw new Error("÷0"); v = o === "*" ? v * r : v / r; } return v; }
+  function unaire(){ if (pk() === "-"){ i++; return -unaire(); } if (pk() === "+"){ i++; return unaire(); } return atome(); }
+  function atome(){
+    if (pk() === "("){ i++; const v = expr(); if (pk() !== ")") throw new Error("invalide"); i++; return v; }
+    const m = /^\d+(?:\.\d+)?/.exec(t.slice(i)); if (!m) throw new Error("invalide");
+    i += m[0].length; return parseFloat(m[0]);
+  }
+  const v = expr(); if (i !== t.length) throw new Error("invalide"); return v;
+}
+let cx = "";
+function majCalc(){ $("#c-aff").textContent = cx || "0"; }
+(function(){
+  const touches = ["C","⌫","%","÷","7","8","9","×","4","5","6","−","1","2","3","+","0",",","(",")"];
+  $("#c-grille").innerHTML = touches.map((k) => '<button data-k="' + k + '">' + k + "</button>").join("");
+  $("#c-grille").onclick = (e) => {
+    const k = e.target.dataset && e.target.dataset.k; if (!k) return;
+    if (k === "C"){ cx = ""; $("#c-hist").textContent = ""; } else if (k === "⌫") cx = cx.slice(0, -1); else cx += k;
+    majCalc();
+  };
+  $("#c-egal").onclick = () => {
+    try{
+      const v = evaluer(cx), s = String(+v.toFixed(6)).replace(".", ",");
+      $("#c-hist").textContent = cx + " ="; cx = s;
+    }catch(e){ $("#c-hist").textContent = e.message === "÷0" ? "Division par zéro" : "Expression invalide"; }
+    majCalc();
+  };
+  $("#c-copier").onclick = async () => { try{ await navigator.clipboard.writeText(cx); $("#c-hist").textContent = "Copié : " + cx; }catch(e){} };
+  majCalc();
+})();
+
+/* ---------------------------------------------------------------- reglages et theme */
+function appliquerTheme(){
+  const th = cfg.theme;
+  if (!th || th === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", th);
+  const fond = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+  const m = document.querySelector('meta[name="theme-color"]'); if (m && fond) m.setAttribute("content", fond);
+  if (typeof dessiner === "function") dessiner();
+}
+function remplirReglages(){
+  $("#g-pension").value = fmt(cfg.pension, 2); $("#g-marge").value = fmt(cfg.marge, 2); $("#g-ecart").value = fmt(cfg.ecart, 4);
+  $("#g-iof").value = fmt(cfg.iof, 2); $("#g-date").value = cfg.dateOrdre; $("#g-theme").value = cfg.theme || "auto";
+  $("#g-cal").value = cal.join("\n");
+  $("#g-mult").value = Object.entries(cfg.mult || {}).map(([k, v]) => k + "=" + v).join("\n");
+  $("#in-fige").value = cfg.fige && cfg.figePour ? fmt(cfg.fige, 4) : "";
+}
+$("#g-theme").onchange = () => { cfg.theme = $("#g-theme").value; sauverCfg(); appliquerTheme(); };
+$("#g-save").onclick = () => {
+  const msg = $("#g-msg"), p = num($("#g-pension").value), m = num($("#g-marge").value), e = num($("#g-ecart").value), i = num($("#g-iof").value);
+  if (!(p > 0) || !(m >= 0 && m < 20) || !(e >= 0 && e < 2) || !(i >= 0 && i < 10)){ msg.textContent = "Un chiffre est invalide (retraite, marge, écart ou IOF)."; return; }
+  const d = $("#g-date").value.trim(), auto = d === "" || d.toLowerCase() === "auto";
+  if (!auto && !parseD(d)){ msg.textContent = "Date de l'ordre invalide : « auto » ou JJ/MM/AAAA."; return; }
+  const dates = $("#g-cal").value.split(/\n+/).map((s) => s.trim()).filter(Boolean);
+  if (dates.some((s) => !parseD(s))){ msg.textContent = "Calendrier : une date invalide (JJ/MM/AAAA, une par ligne)."; return; }
+  const mult = {};
+  for (const l of $("#g-mult").value.split(/\n+/).map((s) => s.trim()).filter(Boolean)){
+    const [k, v] = l.split("="); if (!parseD(k) || !(num(v) > 0)){ msg.textContent = "Multiplicateur invalide : écrivez JJ/MM/AAAA=2."; return; }
+    mult[fmtD(parseD(k))] = num(v);
+  }
+  Object.assign(cfg, {pension: p, marge: m, ecart: e, iof: i, dateOrdre: auto ? "auto" : d, mult});
+  cal = dates; store.set("cr_cal", cal); sauverCfg(); remplirReglages(); afficher();
+  msg.textContent = "Réglages enregistrés.";
+};
+function ordreCourant(){
+  const auto = String(cfg.dateOrdre).trim().toLowerCase() === "auto" || cfg.dateOrdre === "";
+  return auto ? prochainOrdre() : parseD(cfg.dateOrdre);
+}
+$("#b-fige").onclick = () => {
+  const v = num($("#in-fige").value), o = ordreCourant();
+  if (!o){ $("#fige-etat").textContent = "Pas de date d'ordre : voir Réglages."; return; }
+  if (!(v > 0.8 && v < 1.8)){ $("#fige-etat").textContent = "Taux invalide : écrivez par exemple 1,2247."; return; }
+  cfg.fige = v; cfg.figePour = fmtD(o); sauverCfg(); afficher();
+};
+$("#b-fige-live").onclick = () => {
+  const o = ordreCourant();
+  if (!taux || !o){ $("#fige-etat").textContent = "Pas de taux en direct ou pas de date d'ordre."; return; }
+  cfg.fige = +taux.chf_usd.toFixed(4); cfg.figePour = fmtD(o); sauverCfg(); $("#in-fige").value = fmt(cfg.fige, 4); afficher();
+};
+$("#b-manuel").onclick = () => {
+  const c = num($("#m-chf").value), u = num($("#m-usd").value);
+  if (!(c > 0.8 && c < 1.8) || !(u > 1 && u < 30)){ $("#m-msg").textContent = "Taux invalides : par exemple 1,1865 et 5,811."; return; }
+  taux = {usd_brl: u, chf_usd: c, source: "Saisie manuelle", at: Date.now(), manuel: true}; store.set("cr_taux", taux); enLigne = false;
+  $("#m-msg").textContent = "Taux enregistrés et gardés 60 minutes. Touchez « ↻ Taux » pour revenir aux taux automatiques."; afficher();
+};
+$("#in-obj").oninput = objectif;
+$("#b-act").onclick = () => actualiser(true);
+
+/* ---------------------------------------------------------------- navigation */
+document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => {
+  document.querySelectorAll("nav button").forEach((x) => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".onglet").forEach((s) => s.classList.toggle("on", s.id === "t-" + b.dataset.t));
+  if (b.dataset.t === "recap"){ rendreRecap(); rendreImp(); }
+  window.scrollTo(0, 0);
+}));
+
+/* ---------------------------------------------------------------- demarrage */
+$("#version").textContent = "Version " + VERSION;
+appliquerTheme(); remplirReglages(); rendreRecap(); rendreImp(); afficher(); actualiser();
+setInterval(() => { if (!document.hidden) actualiser(); }, 60 * 1000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && (!taux || Date.now() - taux.at > 60 * 1000)) actualiser(); });
+window.addEventListener("online", () => actualiser());
+window.addEventListener("offline", () => { enLigne = false; afficher(); });
+if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+</script>
+</body>
+</html>
