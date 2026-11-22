@@ -162,6 +162,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-
     <h2>Sauvegarde</h2>
     <p class="expl">Vos données restent dans ce téléphone. Copiez la sauvegarde pour la garder (note, message à vous-même) et collez-la pour restaurer sur un autre appareil.</p>
     <div class="rangee"><button id="b-copier">Copier la sauvegarde</button><button id="b-csv">Copier en CSV (Excel)</button></div>
+    <label for="nom-sauv">Nom du fichier de sauvegarde (le même nom remplace l'ancien fichier : un seul fichier, jamais de doublons)</label><input id="nom-sauv" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="sauvegarde_retraite">
     <div class="rangee" style="margin-top:8px"><button id="b-fichier">Sauvegarder (choisir le dossier)</button><button id="b-choisir">Restaurer depuis un fichier…</button></div>
     <input type="file" id="in-fichier" accept=".json,.txt,text/plain,application/json" style="display:none">
     <label for="in-resto">Coller une sauvegarde ici pour restaurer</label>
@@ -189,6 +190,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-
     <label for="g-pension">Retraite mensuelle (CHF)</label><input id="g-pension" inputmode="decimal">
     <label for="g-cle">Clé AwesomeAPI (facultatif : taux à la minute si le service la demande)</label><input id="g-cle" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="coller la clé ici">
     <label for="g-oxr">Clé Open Exchange Rates (facultatif : taux mis à jour chaque heure, compte gratuit)</label><input id="g-oxr" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="coller l'App ID ici">
+    <div class="rangee" style="margin-top:8px"><button id="b-test-oxr">Tester la clé</button></div><div class="expl" id="test-oxr-msg"></div>
     <label for="g-marge">Marge de la Caisse sur CHF → USD (%)</label><input id="g-marge" inputmode="decimal">
     <label for="g-ecart">Écart du Banco do Brasil (R$ sous le marché, par dollar)</label><input id="g-ecart" inputmode="decimal">
     <label for="g-iof">IOF (%)</label><input id="g-iof" inputmode="decimal">
@@ -221,10 +223,10 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-
 <script>
 "use strict";
 /* ---------------------------------------------------------------- données et outils */
-const VERSION = "2.9 (21/11/2026 · icône du site)";
+const VERSION = "3.0 (21/11/2026 · nom de sauvegarde, test clé)";
 const CAL2026 = ["08/01/2026","05/02/2026","05/03/2026","08/04/2026","07/05/2026","05/06/2026","07/07/2026",
   "06/08/2026","07/09/2026","07/10/2026","06/11/2026","07/12/2026"];
-const DEF = {pension:0, marge:1.18, ecart:0.09, iof:0.38, dateOrdre:"auto", fige:null, figePour:null, theme:"auto", cleAwesome:"", cleOxr:"",
+const DEF = {pension:0, marge:1.18, ecart:0.09, iof:0.38, dateOrdre:"auto", fige:null, figePour:null, theme:"auto", cleAwesome:"", cleOxr:"", nomSauv:"",
   mult:{"07/12/2026":2}};
 const MOIS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
 const JOURS = ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
@@ -643,7 +645,7 @@ async function copier(texte, cible){
 $("#b-copier").onclick = () => copier(JSON.stringify({v: 1, cfg, cal, recap, imp}), $("#sauv-msg"));
 $("#b-csv").onclick = () => copier(csv(), $("#sauv-msg"));
 $("#b-fichier").onclick = async () => {
-  const msg = $("#sauv-msg"), nom = "sauvegarde_retraite_" + new Date().toISOString().slice(0, 10) + ".json";
+  const msg = $("#sauv-msg"), nom = (String(cfg.nomSauv || "").replace(/\.json$/i, "").replace(/[^\w\-. ()àâäçéèêëîïôöùûüÀÉÈ]/g, "_").trim() || "sauvegarde_retraite") + ".json";
   const texte = JSON.stringify({v: 1, cfg, cal, recap, imp});
   const telecharger = () => {
     const blob = new Blob([texte], {type: "application/json"});
@@ -663,6 +665,20 @@ $("#b-fichier").onclick = async () => {
   }
 };
 $("#b-choisir").onclick = () => $("#in-fichier").click();
+$("#nom-sauv").oninput = () => { cfg.nomSauv = $("#nom-sauv").value.trim(); sauverCfg(); };
+$("#b-test-oxr").onclick = async () => {
+  const m = $("#test-oxr-msg"), cle = $("#g-oxr").value.trim();
+  if (!cle){ m.textContent = "Collez d'abord la clé dans la case ci-dessus."; return; }
+  m.textContent = "Test en cours…"; $("#b-test-oxr").disabled = true;
+  try{
+    const j = await getJSON("https://openexchangerates.org/api/latest.json?app_id=" + encodeURIComponent(cle) + "&symbols=BRL,CHF");
+    if (j && j.rates && j.rates.BRL > 1 && j.rates.CHF > 0.5) m.textContent = "Clé valide : 1 USD = " + fmt(j.rates.BRL, 4) + " BRL · 1 CHF = " + fmt(1 / j.rates.CHF, 4) + " USD (taux de l'heure). N'oubliez pas « Enregistrer ».";
+    else m.textContent = "Réponse inattendue : " + JSON.stringify(j).slice(0, 120);
+  }catch(e){
+    m.textContent = "Test échoué : " + (e && e.message ? e.message : e) + ". Si la clé est bonne, c'est peut-être le réseau ; sinon vérifiez-la sur openexchangerates.org/account/app-ids.";
+  }
+  $("#b-test-oxr").disabled = false;
+};
 $("#in-fichier").onchange = () => {
   const f = $("#in-fichier").files[0], msg = $("#sauv-msg"); if (!f) return;
   const r = new FileReader();
@@ -847,7 +863,7 @@ function appliquerTheme(){
 }
 function remplirReglages(){
   $("#g-pension").value = fmt(cfg.pension, 2); $("#g-marge").value = fmt(cfg.marge, 2); $("#g-ecart").value = fmt(cfg.ecart, 4);
-  $("#g-cle").value = cfg.cleAwesome || ""; $("#g-oxr").value = cfg.cleOxr || ""; $("#g-iof").value = fmt(cfg.iof, 2); $("#g-date").value = cfg.dateOrdre; $("#g-theme").value = cfg.theme || "auto";
+  $("#g-cle").value = cfg.cleAwesome || ""; $("#g-oxr").value = cfg.cleOxr || ""; $("#nom-sauv").value = cfg.nomSauv || ""; $("#g-iof").value = fmt(cfg.iof, 2); $("#g-date").value = cfg.dateOrdre; $("#g-theme").value = cfg.theme || "auto";
   $("#g-cal").value = cal.join("\n");
   $("#g-mult").value = Object.entries(cfg.mult || {}).map(([k, v]) => k + "=" + v).join("\n");
   $("#in-fige").value = cfg.fige && cfg.figePour ? fmt(cfg.fige, 4) : "";
