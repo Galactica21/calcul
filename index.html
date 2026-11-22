@@ -223,7 +223,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-
 <script>
 "use strict";
 /* ---------------------------------------------------------------- données et outils */
-const VERSION = "3.0 (21/11/2026 · nom de sauvegarde, test clé)";
+const VERSION = "3.1 (21/11/2026 · un seul fichier de sauvegarde)";
 const CAL2026 = ["08/01/2026","05/02/2026","05/03/2026","08/04/2026","07/05/2026","05/06/2026","07/07/2026",
   "06/08/2026","07/09/2026","07/10/2026","06/11/2026","07/12/2026"];
 const DEF = {pension:0, marge:1.18, ecart:0.09, iof:0.38, dateOrdre:"auto", fige:null, figePour:null, theme:"auto", cleAwesome:"", cleOxr:"", nomSauv:"",
@@ -656,7 +656,7 @@ $("#b-fichier").onclick = async () => {
   try{
     const f = new File([texte], nom, {type: "application/json"});
     if (navigator.canShare && navigator.canShare({files: [f]})){
-      await navigator.share({files: [f], title: nom});   // feuille de partage : « Enregistrer dans Fichiers » = choix du dossier
+      await navigator.share({files: [f]});   // feuille de partage : « Enregistrer dans Fichiers » = choix du dossier
       msg.textContent = "Si vous avez choisi « Enregistrer dans Fichiers », la sauvegarde est dans le dossier que vous avez sélectionné.";
     } else telecharger();
   }catch(e){
