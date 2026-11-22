@@ -154,7 +154,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-
     <div id="imp-liste" style="margin-top:10px"></div>
     <label for="imp-mois">Modifier un mois : écrivez-le (ex. Janeiro 2027)</label><input id="imp-mois" autocomplete="off" autocapitalize="none" placeholder="Janeiro 2027">
     <label for="imp-date">Date de la remise (JJ/MM/AAAA) – pour ajouter un mois</label><input id="imp-date" inputmode="numeric" placeholder="09/01/2026">
-    <label for="imp-val">Valeur reçue en R$ (« Valor da remessa ») · 0 = supprimer une ligne ajoutée à la main</label><input id="imp-val" inputmode="decimal">
+    <label for="imp-val">Dollars reçus en US$, tels que reçus (sans change) · 0 = supprimer la ligne</label><input id="imp-val" inputmode="decimal">
     <div class="rangee" style="margin-top:10px"><button id="imp-add">Ajouter / modifier</button><button id="imp-pdf" class="principal">Imprimer / PDF</button></div>
     <div class="expl" id="imp-msg"></div>
   </div>
@@ -223,7 +223,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-
 <script>
 "use strict";
 /* ---------------------------------------------------------------- données et outils */
-const VERSION = "3.1 (21/11/2026 · un seul fichier de sauvegarde)";
+const VERSION = "3.2 (22/11/2026 · relevé en dollars)";
 const CAL2026 = ["08/01/2026","05/02/2026","05/03/2026","08/04/2026","07/05/2026","05/06/2026","07/07/2026",
   "06/08/2026","07/09/2026","07/10/2026","06/11/2026","07/12/2026"];
 const DEF = {pension:0, marge:1.18, ecart:0.09, iof:0.38, dateOrdre:"auto", fige:null, figePour:null, theme:"auto", cleAwesome:"", cleOxr:"", nomSauv:"",
@@ -695,13 +695,16 @@ $("#b-resto").onclick = () => {
       if (!confirm("Ajouter les mois et lignes d'impôts venant du PC à ce téléphone ?")) return;
       let n = 0;
       for (const k of Object.keys(d.recap)){ const r = d.recap[k]; if (r && r.ordre && (!recap[k] || r.reel)){ recap[k] = r; n++; } }
-      if (d.imp && d.imp.manuels) Object.assign(imp.manuels, d.imp.manuels);
+      if (d.imp && d.imp.manuels){   // sans « moeda : USD » : ancienne version, lignes en reais -> mises de cote
+        if (d.imp.moeda === "USD") Object.assign(imp.manuels, d.imp.manuels);
+        else imp.manuels_brl = Object.assign({}, imp.manuels_brl || {}, d.imp.manuels);
+      }
       if (d.imp && d.imp.nom && !imp.nom) imp.nom = d.imp.nom;
       sauverRecap(); sauverImp(); rendreRecap(); rendreImp(); afficher();
       msg.textContent = "Importé depuis le PC : " + n + " mois."; return;
     }
     if (!confirm("Remplacer les données de ce téléphone par cette sauvegarde ?")) return;
-    cfg = Object.assign({}, DEF, d.cfg); if (Array.isArray(d.cal)) cal = d.cal; recap = d.recap; if (d.imp && typeof d.imp === "object") imp = d.imp;
+    cfg = Object.assign({}, DEF, d.cfg); if (Array.isArray(d.cal)) cal = d.cal; recap = d.recap; if (d.imp && typeof d.imp === "object") imp = migrerImp(d.imp);
     sauverCfg(); sauverImp(); store.set("cr_cal", cal); sauverRecap(); remplirReglages(); appliquerTheme(); rendreRecap(); rendreImp(); afficher();
     msg.textContent = "Sauvegarde restaurée.";
   }catch(e){ msg.textContent = "Sauvegarde illisible : copiez-la en entier depuis « Copier la sauvegarde »."; }
@@ -720,18 +723,23 @@ document.addEventListener("input", (e) => {
 });
 /* ---------------------------------------------------------------- impots : releve en portugais */
 const MESES_PT = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
-let imp = store.get("cr_imp", null) || {nom: "", manuels: {}};
+function migrerImp(o){   // le releve est en dollars : les anciennes lignes manuelles (en reais) sont mises de cote, pas melangees
+  o = (o && typeof o === "object") ? o : {};
+  o.nom = o.nom || ""; o.manuels = o.manuels || {};
+  if (o.moeda !== "USD"){
+    if (Object.keys(o.manuels).length) o.manuels_brl = Object.assign({}, o.manuels_brl || {}, o.manuels);
+    o.manuels = {}; o.moeda = "USD";
+  }
+  return o;
+}
+let imp = migrerImp(store.get("cr_imp", null));
+if (imp.manuels_brl) store.set("cr_imp", imp);
 function sauverImp(){ store.set("cr_imp", imp); }
 const nfBr = new Intl.NumberFormat("pt-BR", {minimumFractionDigits: 2, maximumFractionDigits: 2});
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function lignesImp(annee){
   const L = [];
-  for (const cle of clesTriees()){
-    const rec = recap[cle], a = analyser(rec); if (!a) continue;
-    const d = parseD(rec.arrivee_reelle || rec.arrivee || cle);
-    if (d && d.getFullYear() === annee) L.push({d, valor: a.net, estime: a.estime, manuel: false});
-  }
-  for (const k of Object.keys(imp.manuels)){   // une ligne saisie a la main remplace celle du recap a la meme date
+  for (const k of Object.keys(imp.manuels)){   // le releve ne contient que les dollars saisis a la main (aucun calcul)
     const d = parseD(k), v = +imp.manuels[k];
     if (!(d && d.getFullYear() === annee && v > 0)) continue;
     const i = L.findIndex((x) => fmtD(x.d) === fmtD(d));
@@ -742,7 +750,6 @@ function lignesImp(annee){
 }
 function anneesImp(){
   const A = new Set([aujourdhui().getFullYear(), aujourdhui().getFullYear() + 1]);
-  for (const cle of clesTriees()){ const r = recap[cle]; if (analyser(r)){ const d = parseD(r.arrivee_reelle || r.arrivee || cle); if (d) A.add(d.getFullYear()); } }
   for (const k of Object.keys(imp.manuels)){ const d = parseD(k); if (d) A.add(d.getFullYear()); }
   return [...A].sort();
 }
@@ -751,20 +758,22 @@ function rendreImp(){
   sel.innerHTML = anneesImp().map((a) => '<option' + (String(a) === garde ? " selected" : "") + ">" + a + "</option>").join("");
   const an = +sel.value, L = lignesImp(an), tot = L.reduce((s, x) => s + x.valor, 0);
   $("#imp-nom").value = imp.nom || $("#imp-nom").value;
-  $("#imp-liste").innerHTML = '<div class="ligne"><span><b>Total ' + an + "</b> (" + L.length + " remise" + (L.length > 1 ? "s" : "") + ')</span><b>' + fmt(tot) + " R$</b></div>";
+  $("#imp-liste").innerHTML = '<div class="ligne"><span><b>Total ' + an + "</b> (" + L.length + " remise" + (L.length > 1 ? "s" : "") + ')</span><b>' + fmt(tot) + " US$</b></div>";
+  const mm = $("#imp-msg"), nAnc = Object.keys(imp.manuels_brl || {}).length;
+  if (nAnc && !mm.textContent) mm.textContent = "Le relevé est maintenant en dollars (US$). " + nAnc + " ancienne(s) ligne(s) saisie(s) en reais ont été mises de côté (rien n'est perdu) : ressaisissez ces mois en dollars reçus.";
 }
 function htmlImp(an){
-  const L = lignesImp(an), tot = L.reduce((s, x) => s + x.valor, 0), reais = L.filter((x) => !x.estime).reduce((s, x) => s + x.valor, 0);
+  const L = lignesImp(an), tot = L.reduce((s, x) => s + x.valor, 0), confirme = L.filter((x) => !x.estime).reduce((s, x) => s + x.valor, 0);
   const lignes = L.length ? L.map((x) => "<tr><td>" + MESES_PT[x.d.getMonth()].replace(/^./, (c) => c.toUpperCase()) + '</td><td class="c">'
-    + fmtD(x.d) + '</td><td class="r">R$ ' + nfBr.format(x.valor) + (x.estime ? " *" : "") + "</td></tr>").join("")
+    + fmtD(x.d) + '</td><td class="r">US$ ' + nfBr.format(x.valor) + (x.estime ? " *" : "") + "</td></tr>").join("")
     : '<tr><td colspan="3" class="c">Nenhum recebimento registrado neste ano.</td></tr>';
   const nome = (imp.nom || "").trim();
-  return "<h1>RENDIMENTO " + an + "</h1><h3>Aposentadoria AVS (Suíça) – valores convertidos e creditados no Brasil</h3>"
+  return "<h1>RENDIMENTO " + an + "</h1><h3>Aposentadoria AVS (Suíça) – valores recebidos em dólares americanos (US$)</h3>"
     + (nome ? "<p><b>Beneficiário:</b> " + esc(nome) + "</p>" : "")
-    + '<table><thead><tr><th>Mês</th><th class="c">Data da remessa</th><th class="r">Valor convertido (R$)</th></tr></thead><tbody>' + lignes
-    + '</tbody><tfoot><tr><td colspan="2">Total recebido em ' + an + '</td><td class="r">R$ ' + nfBr.format(tot) + "</td></tr></tfoot></table>"
-    + (L.some((x) => x.estime) ? "<p>* Valor estimado (a remessa ainda não foi confirmada com o comprovante do banco). Total apenas dos valores confirmados: R$ " + nfBr.format(reais) + ".</p>" : "")
-    + "<p>Valores em reais (R$) efetivamente creditados após a conversão de francos suíços (CHF) para dólares (USD) e de dólares para reais, já descontado o IOF. A data corresponde à da remessa recebida no Banco do Brasil. Em dezembro, o valor inclui a 13ª aposentadoria.</p>"
+    + '<table><thead><tr><th>Mês</th><th class="c">Data da remessa</th><th class="r">Valor recebido (US$)</th></tr></thead><tbody>' + lignes
+    + '</tbody><tfoot><tr><td colspan="2">Total recebido em ' + an + '</td><td class="r">US$ ' + nfBr.format(tot) + "</td></tr></tfoot></table>"
+    + (L.some((x) => x.estime) ? "<p>* Valor estimado (a remessa ainda não foi confirmada com o comprovante do banco). Total apenas dos valores confirmados: US$ " + nfBr.format(confirme) + ".</p>" : "")
+    + "<p>Valores em dólares americanos (US$) recebidos, após a conversão dos francos suíços (CHF) para dólares (USD) feita pela caixa de compensação suíça. A data corresponde à da remessa recebida no Banco do Brasil. Em dezembro, o valor inclui a 13ª aposentadoria.</p>"
     + "<p>Documento gerado em " + fmtD(aujourdhui()) + ".</p>";
 }
 $("#imp-an").onchange = rendreImp;
@@ -779,7 +788,7 @@ $("#imp-add").onclick = () => {
   if (!d || !(v > 0)){ m.textContent = "Date (JJ/MM/AAAA) ou valeur invalide."; return; }
   imp.manuels[fmtD(d)] = v; sauverImp();
   $("#imp-an").value = String(d.getFullYear()); $("#imp-date").value = ""; $("#imp-val").value = ""; $("#imp-mois").value = "";
-  rendreImp(); $("#imp-an").value = String(d.getFullYear()); rendreImp(); m.textContent = "Enregistré : " + fmtD(d) + " → " + fmt(v) + " R$." + (store.get("cr_imp", null) ? "" : " ATTENTION : ce visualiseur ne garde pas les données (ouvrez le fichier dans Safari).");
+  rendreImp(); $("#imp-an").value = String(d.getFullYear()); rendreImp(); m.textContent = "Enregistré : " + fmtD(d) + " → " + fmt(v) + " US$." + (store.get("cr_imp", null) ? "" : " ATTENTION : ce visualiseur ne garde pas les données (ouvrez le fichier dans Safari).");
 };
 const sansAccent = (t) => String(t).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const NOMS_MOIS = [["janeiro","janvier"],["fevereiro","fevrier"],["marco","mars"],["abril","avril"],["maio","mai"],["junho","juin"],
