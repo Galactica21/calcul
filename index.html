@@ -135,11 +135,6 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-
     <div class="expl" id="fige-etat"></div>
   </div>
   <div id="sortie"></div>
-  <div class="carte">
-    <h2>Quel dollar pour viser un net ?</h2>
-    <div class="rangee"><div><label for="in-obj">Net voulu (R$)</label><input id="in-obj" inputmode="decimal" placeholder="10 000"></div></div>
-    <div id="obj-res" class="expl"></div>
-  </div>
 </section>
 
 <!-- ===================== RECAP ===================== -->
@@ -148,20 +143,20 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-
   <div class="carte" id="rc-liste"></div>
   <div class="carte" id="imp-carte">
     <h2>Impôts : relevé en portugais (PDF)</h2>
-    <p class="expl">Valeur convertie reçue chaque mois, avec la date de la remise. Les mois du récap sont repris automatiquement ; ajoutez à la main les mois manquants.</p>
+    <p class="expl">Pour chaque mois : la date de la remise, les dollars reçus (US$) et les reais reçus (R$), tels que vous les avez reçus. Tout est saisi à la main.</p>
     <label for="imp-an">Année</label><select id="imp-an"></select>
     <label for="imp-nom">Nom du bénéficiaire (facultatif, imprimé)</label><input id="imp-nom" autocomplete="name">
     <div id="imp-liste" style="margin-top:10px"></div>
     <label for="imp-mois">Modifier un mois : écrivez-le (ex. Janeiro 2027)</label><input id="imp-mois" autocomplete="off" autocapitalize="none" placeholder="Janeiro 2027">
     <label for="imp-date">Date de la remise (JJ/MM/AAAA) – pour ajouter un mois</label><input id="imp-date" inputmode="numeric" placeholder="09/01/2026">
-    <label for="imp-val">Dollars reçus en US$, tels que reçus (sans change) · 0 = supprimer la ligne</label><input id="imp-val" inputmode="decimal">
+    <label for="imp-val">Dollars reçus (US$), sans change · vide = inchangé · 0 = effacer</label><input id="imp-val" inputmode="decimal">
+    <label for="imp-brl">Reais reçus (R$) · vide = inchangé · 0 = effacer</label><input id="imp-brl" inputmode="decimal">
     <div class="rangee" style="margin-top:10px"><button id="imp-add">Ajouter / modifier</button><button id="imp-pdf" class="principal">Imprimer / PDF</button></div>
     <div class="expl" id="imp-msg"></div>
   </div>
   <div class="carte">
     <h2>Sauvegarde</h2>
-    <p class="expl">Vos données restent dans ce téléphone. Copiez la sauvegarde pour la garder (note, message à vous-même) et collez-la pour restaurer sur un autre appareil.</p>
-    <div class="rangee"><button id="b-copier">Copier la sauvegarde</button><button id="b-csv">Copier en CSV (Excel)</button></div>
+    <p class="expl">Vos données restent dans ce téléphone. Utilisez « Sauvegarder » pour garder un fichier dans Fichiers, et « Restaurer depuis un fichier… » pour le remettre.</p>
     <label for="nom-sauv">Nom du fichier de sauvegarde (le même nom remplace l'ancien fichier : un seul fichier, jamais de doublons)</label><input id="nom-sauv" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="sauvegarde_retraite">
     <div class="rangee" style="margin-top:8px"><button id="b-fichier">Sauvegarder (choisir le dossier)</button><button id="b-choisir">Restaurer depuis un fichier…</button></div>
     <input type="file" id="in-fichier" accept=".json,.txt,text/plain,application/json" style="display:none">
@@ -223,7 +218,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-
 <script>
 "use strict";
 /* ---------------------------------------------------------------- données et outils */
-const VERSION = "3.2 (22/11/2026 · relevé en dollars)";
+const VERSION = "3.3 (23/11/2026 · relevé US$ et R$)";
 const CAL2026 = ["08/01/2026","05/02/2026","05/03/2026","08/04/2026","07/05/2026","05/06/2026","07/07/2026",
   "06/08/2026","07/09/2026","07/10/2026","06/11/2026","07/12/2026"];
 const DEF = {pension:0, marge:1.18, ecart:0.09, iof:0.38, dateOrdre:"auto", fige:null, figePour:null, theme:"auto", cleAwesome:"", cleOxr:"", nomSauv:"",
@@ -548,15 +543,6 @@ function afficher(){
     + ' dont Caisse ≈ ' + fmt(r.perteCaisseBrl) + ' R$, banco ' + fmt(r.perteBb) + ' R$, IOF ' + fmt(r.iof) + ' R$.</p></div>';
   window.__dernier = {r, chfUsd, pension};
   dessiner();
-  objectif();
-}
-function objectif(){
-  const cible = num($("#in-obj").value), d = window.__dernier;
-  if (!d || !(cible > 0)){ $("#obj-res").textContent = ""; return; }
-  const b = cible / (d.r.usdRecu * (1 - cfg.iof / 100)) + cfg.ecart;
-  const diff = (b / taux.usd_brl - 1) * 100;
-  $("#obj-res").innerHTML = "Pour " + fmt(cible) + " R$ nets avec " + fmt(d.r.usdRecu) + " USD reçus, il faut un dollar à <b>" + fmt(b, 4)
-    + " R$</b> (aujourd'hui " + fmt(taux.usd_brl, 4) + ", soit " + (diff >= 0 ? "+" : "") + fmt(diff, 1) + " %).";
 }
 
 /* ---------------------------------------------------------------- onglet Recap */
@@ -621,29 +607,6 @@ $("#rc-liste").addEventListener("click", (e) => {
   sauverRecap(); ouvertes[cle] = true; rendreRecap();
   const m2 = $('#rc-liste [data-cle="' + cle + '"] .f-msg'); if (m2) m2.textContent = "Chiffres réels enregistrés. " + v.msg;
 });
-function csv(){
-  const col = ["Mois","Ordre","Arrivée","Type","Retraite CHF","CHF→USD marché","USD marché","USD reçus","Taux Caisse","Marge Caisse USD",
-    "Marge Caisse %","USD→BRL marché","Taux banco","Écart banco R$/USD","Écart banco %","Converti R$","IOF R$","Reçu net R$","Sans frais R$",
-    "Coûts Caisse R$","Coûts banco R$","Coûts totaux R$","Coûts totaux %"];
-  const f = (x, d = 2) => String(x.toFixed(d)).replace(".", ",");
-  const lignes = [col.join(";")];
-  for (const cle of clesTriees()){
-    const rec = recap[cle], a = analyser(rec); if (!a) continue;
-    lignes.push([libMois(cle), cle, rec.arrivee_reelle || rec.arrivee || "", a.estime ? "estimé" : "réel", f(a.pension), f(a.a, 4), f(a.usdMarche),
-      f(a.usdRecu), f(a.tauxCaisse, 4), f(a.margeUsd), f(a.margePct), f(a.b, 4), f(a.tauxBb, 4), f(a.ecart, 4), f(a.ecartPct), f(a.converti),
-      f(a.iof), f(a.net), f(a.ideal), f(a.caisseBrl), f(a.bbBrl), f(a.couts), f(a.coutsPct)].join(";"));
-  }
-  return lignes.join("\r\n");
-}
-async function copier(texte, cible){
-  try{ await navigator.clipboard.writeText(texte); cible.textContent = "Copié dans le presse-papiers."; }
-  catch(e){
-    const z = $("#in-resto"); z.value = texte; z.focus(); z.select();
-    cible.textContent = "Copie automatique refusée : le texte est dans la case ci-dessous, sélectionnez-le et copiez-le.";
-  }
-}
-$("#b-copier").onclick = () => copier(JSON.stringify({v: 1, cfg, cal, recap, imp}), $("#sauv-msg"));
-$("#b-csv").onclick = () => copier(csv(), $("#sauv-msg"));
 $("#b-fichier").onclick = async () => {
   const msg = $("#sauv-msg"), nom = (String(cfg.nomSauv || "").replace(/\.json$/i, "").replace(/[^\w\-. ()àâäçéèêëîïôöùûüÀÉÈ]/g, "_").trim() || "sauvegarde_retraite") + ".json";
   const texte = JSON.stringify({v: 1, cfg, cal, recap, imp});
@@ -661,7 +624,7 @@ $("#b-fichier").onclick = async () => {
     } else telecharger();
   }catch(e){
     if (e && e.name === "AbortError") msg.textContent = "Sauvegarde annulée.";
-    else { try{ telecharger(); }catch(e2){ msg.textContent = "Enregistrement impossible ici (ouvrez la page dans Safari) : utilisez « Copier la sauvegarde »."; } }
+    else { try{ telecharger(); }catch(e2){ msg.textContent = "Enregistrement impossible ici (ouvrez la page dans Safari)."; } }
   }
 };
 $("#b-choisir").onclick = () => $("#in-fichier").click();
@@ -707,7 +670,7 @@ $("#b-resto").onclick = () => {
     cfg = Object.assign({}, DEF, d.cfg); if (Array.isArray(d.cal)) cal = d.cal; recap = d.recap; if (d.imp && typeof d.imp === "object") imp = migrerImp(d.imp);
     sauverCfg(); sauverImp(); store.set("cr_cal", cal); sauverRecap(); remplirReglages(); appliquerTheme(); rendreRecap(); rendreImp(); afficher();
     msg.textContent = "Sauvegarde restaurée.";
-  }catch(e){ msg.textContent = "Sauvegarde illisible : copiez-la en entier depuis « Copier la sauvegarde »."; }
+  }catch(e){ msg.textContent = "Sauvegarde illisible : choisissez le fichier .json créé par « Sauvegarder »."; }
 };
 
 /* saisie des dates : les « / » se mettent tout seuls */
@@ -738,57 +701,54 @@ function sauverImp(){ store.set("cr_imp", imp); }
 const nfBr = new Intl.NumberFormat("pt-BR", {minimumFractionDigits: 2, maximumFractionDigits: 2});
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function lignesImp(annee){
-  const L = [];
-  for (const k of Object.keys(imp.manuels)){   // le releve ne contient que les dollars saisis a la main (aucun calcul)
-    const d = parseD(k), v = +imp.manuels[k];
+  const M = {};   // une ligne par date de remise : dollars et reais saisis a la main (aucun calcul)
+  const ajoute = (src, champ) => { for (const k of Object.keys(src || {})){
+    const d = parseD(k), v = +src[k];
     if (!(d && d.getFullYear() === annee && v > 0)) continue;
-    const i = L.findIndex((x) => fmtD(x.d) === fmtD(d));
-    if (i >= 0) L.splice(i, 1);
-    L.push({d, valor: v, estime: false, manuel: true});
-  }
-  return L.sort((x, y) => x.d - y.d);
+    const c = fmtD(d); (M[c] = M[c] || {d, usd: 0, brl: 0})[champ] = v; } };
+  ajoute(imp.manuels, "usd"); ajoute(imp.manuels_brl, "brl");
+  return Object.values(M).sort((x, y) => x.d - y.d);
 }
 function anneesImp(){
   const A = new Set([aujourdhui().getFullYear(), aujourdhui().getFullYear() + 1]);
-  for (const k of Object.keys(imp.manuels)){ const d = parseD(k); if (d) A.add(d.getFullYear()); }
+  for (const src of [imp.manuels, imp.manuels_brl]) for (const k of Object.keys(src || {})){ const d = parseD(k); if (d) A.add(d.getFullYear()); }
   return [...A].sort();
 }
 function rendreImp(){
   const sel = $("#imp-an"), garde = sel.value || String(aujourdhui().getFullYear());
   sel.innerHTML = anneesImp().map((a) => '<option' + (String(a) === garde ? " selected" : "") + ">" + a + "</option>").join("");
-  const an = +sel.value, L = lignesImp(an), tot = L.reduce((s, x) => s + x.valor, 0);
+  const an = +sel.value, L = lignesImp(an), tot = L.reduce((s, x) => s + x.usd, 0), totB = L.reduce((s, x) => s + x.brl, 0);
   $("#imp-nom").value = imp.nom || $("#imp-nom").value;
-  $("#imp-liste").innerHTML = '<div class="ligne"><span><b>Total ' + an + "</b> (" + L.length + " remise" + (L.length > 1 ? "s" : "") + ')</span><b>' + fmt(tot) + " US$</b></div>";
-  const mm = $("#imp-msg"), nAnc = Object.keys(imp.manuels_brl || {}).length;
-  if (nAnc && !mm.textContent) mm.textContent = "Le relevé est maintenant en dollars (US$). " + nAnc + " ancienne(s) ligne(s) saisie(s) en reais ont été mises de côté (rien n'est perdu) : ressaisissez ces mois en dollars reçus.";
+  $("#imp-liste").innerHTML = '<div class="ligne"><span><b>Total ' + an + "</b> (" + L.length + " remise" + (L.length > 1 ? "s" : "") + ')</span><b>' + fmt(tot) + " US$ · " + fmt(totB) + " R$</b></div>";
 }
 function htmlImp(an){
-  const L = lignesImp(an), tot = L.reduce((s, x) => s + x.valor, 0), confirme = L.filter((x) => !x.estime).reduce((s, x) => s + x.valor, 0);
+  const L = lignesImp(an), tot = L.reduce((s, x) => s + x.usd, 0), totB = L.reduce((s, x) => s + x.brl, 0);
+  const cel = (v, u) => v > 0 ? u + " " + nfBr.format(v) : "—";
   const lignes = L.length ? L.map((x) => "<tr><td>" + MESES_PT[x.d.getMonth()].replace(/^./, (c) => c.toUpperCase()) + '</td><td class="c">'
-    + fmtD(x.d) + '</td><td class="r">US$ ' + nfBr.format(x.valor) + (x.estime ? " *" : "") + "</td></tr>").join("")
-    : '<tr><td colspan="3" class="c">Nenhum recebimento registrado neste ano.</td></tr>';
+    + fmtD(x.d) + '</td><td class="r">' + cel(x.usd, "US$") + '</td><td class="r">' + cel(x.brl, "R$") + "</td></tr>").join("")
+    : '<tr><td colspan="4" class="c">Nenhum recebimento registrado neste ano.</td></tr>';
   const nome = (imp.nom || "").trim();
-  return "<h1>RENDIMENTO " + an + "</h1><h3>Aposentadoria AVS (Suíça) – valores recebidos em dólares americanos (US$)</h3>"
+  return "<h1>RENDIMENTO " + an + "</h1><h3>Aposentadoria AVS (Suíça) – valores recebidos em dólares americanos (US$) e em reais (R$)</h3>"
     + (nome ? "<p><b>Beneficiário:</b> " + esc(nome) + "</p>" : "")
-    + '<table><thead><tr><th>Mês</th><th class="c">Data da remessa</th><th class="r">Valor recebido (US$)</th></tr></thead><tbody>' + lignes
-    + '</tbody><tfoot><tr><td colspan="2">Total recebido em ' + an + '</td><td class="r">US$ ' + nfBr.format(tot) + "</td></tr></tfoot></table>"
-    + (L.some((x) => x.estime) ? "<p>* Valor estimado (a remessa ainda não foi confirmada com o comprovante do banco). Total apenas dos valores confirmados: US$ " + nfBr.format(confirme) + ".</p>" : "")
-    + "<p>Valores em dólares americanos (US$) recebidos, após a conversão dos francos suíços (CHF) para dólares (USD) feita pela caixa de compensação suíça. A data corresponde à da remessa recebida no Banco do Brasil. Em dezembro, o valor inclui a 13ª aposentadoria.</p>"
+    + '<table><thead><tr><th>Mês</th><th class="c">Data da remessa</th><th class="r">Valor recebido (US$)</th><th class="r">Valor recebido (R$)</th></tr></thead><tbody>' + lignes
+    + '</tbody><tfoot><tr><td colspan="2">Total recebido em ' + an + '</td><td class="r">US$ ' + nfBr.format(tot) + '</td><td class="r">R$ ' + nfBr.format(totB) + "</td></tr></tfoot></table>"
+    + "<p>Valores em dólares americanos (US$) recebidos, após a conversão dos francos suíços (CHF) para dólares (USD) feita pela caixa de compensação suíça, e valores em reais (R$) efetivamente recebidos no Banco do Brasil. A data corresponde à da remessa recebida. Em dezembro, o valor inclui a 13ª aposentadoria.</p>"
     + "<p>Documento gerado em " + fmtD(aujourdhui()) + ".</p>";
 }
 $("#imp-an").onchange = rendreImp;
 $("#imp-nom").oninput = () => { imp.nom = $("#imp-nom").value; sauverImp(); };
 $("#imp-add").onclick = () => {
-  const d = parseD($("#imp-date").value.trim()), v = num($("#imp-val").value), m = $("#imp-msg");
-  if (d && v === 0){
-    if (imp.manuels[fmtD(d)] === undefined){ m.textContent = "Rien à supprimer à cette date (les mois du récap ne se suppriment pas : corrigez leur valeur)."; return; }
-    delete imp.manuels[fmtD(d)]; sauverImp(); $("#imp-date").value = ""; $("#imp-val").value = ""; $("#imp-mois").value = ""; rendreImp();
-    m.textContent = "Ligne du " + fmtD(d) + " supprimée."; return;
-  }
-  if (!d || !(v > 0)){ m.textContent = "Date (JJ/MM/AAAA) ou valeur invalide."; return; }
-  imp.manuels[fmtD(d)] = v; sauverImp();
-  $("#imp-an").value = String(d.getFullYear()); $("#imp-date").value = ""; $("#imp-val").value = ""; $("#imp-mois").value = "";
-  rendreImp(); $("#imp-an").value = String(d.getFullYear()); rendreImp(); m.textContent = "Enregistré : " + fmtD(d) + " → " + fmt(v) + " US$." + (store.get("cr_imp", null) ? "" : " ATTENTION : ce visualiseur ne garde pas les données (ouvrez le fichier dans Safari).");
+  const d = parseD($("#imp-date").value.trim()), m = $("#imp-msg");
+  const rU = $("#imp-val").value.trim(), rB = $("#imp-brl").value.trim(), u = rU ? num(rU) : null, b = rB ? num(rB) : null;
+  if (!d || (u === null && b === null) || (u !== null && !(u >= 0)) || (b !== null && !(b >= 0))){ m.textContent = "Date (JJ/MM/AAAA) ou valeur invalide."; return; }
+  const c = fmtD(d); imp.manuels_brl = imp.manuels_brl || {};
+  if (u !== null){ if (u > 0) imp.manuels[c] = u; else delete imp.manuels[c]; }
+  if (b !== null){ if (b > 0) imp.manuels_brl[c] = b; else delete imp.manuels_brl[c]; }
+  sauverImp();
+  $("#imp-date").value = ""; $("#imp-val").value = ""; $("#imp-brl").value = ""; $("#imp-mois").value = "";
+  rendreImp(); $("#imp-an").value = String(d.getFullYear()); rendreImp();
+  const l = lignesImp(d.getFullYear()).find((x) => fmtD(x.d) === c);
+  m.textContent = l ? "Enregistré : " + c + " → " + fmt(l.usd) + " US$ · " + fmt(l.brl) + " R$." : "Ligne du " + c + " supprimée.";
 };
 const sansAccent = (t) => String(t).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const NOMS_MOIS = [["janeiro","janvier"],["fevereiro","fevrier"],["marco","mars"],["abril","avril"],["maio","mai"],["junho","juin"],
@@ -802,12 +762,12 @@ $("#imp-mois").oninput = () => {
   const annee = an ? +an[1] : +$("#imp-an").value;
   const l = lignesImp(annee).find((x) => x.d.getMonth() === idx);
   if (!l){   // mois pas encore enregistre (ex. 2027) : on vide les champs et on demande la date + la valeur
-    $("#imp-date").value = ""; $("#imp-val").value = "";
+    $("#imp-date").value = ""; $("#imp-val").value = ""; $("#imp-brl").value = "";
     if (an) m.textContent = "Rien d'enregistré pour " + MOIS[idx] + " " + annee + " : tapez la date de la remise et la valeur, puis « Ajouter / modifier ».";
     return;
   }
-  $("#imp-date").value = fmtD(l.d); $("#imp-val").value = String(l.valor.toFixed(2)).replace(".", ",");
-  m.textContent = "Trouvé (" + annee + ") : remise du " + fmtD(l.d) + ". Corrigez la valeur puis appuyez sur « Ajouter / modifier ».";
+  $("#imp-date").value = fmtD(l.d); $("#imp-val").value = l.usd ? String(l.usd.toFixed(2)).replace(".", ",") : ""; $("#imp-brl").value = l.brl ? String(l.brl.toFixed(2)).replace(".", ",") : "";
+  m.textContent = "Trouvé (" + annee + ") : remise du " + fmtD(l.d) + ". Corrigez les valeurs puis appuyez sur « Ajouter / modifier ».";
 };
 function fermerApercu(){ const z = $("#zone-imp"); z.classList.remove("ouvert"); z.innerHTML = ""; document.body.classList.remove("imprime-imp"); }
 $("#imp-pdf").onclick = () => {   // 1) apercu a l'ecran, 2) impression seulement si on appuie sur le bouton
@@ -917,7 +877,6 @@ $("#b-manuel").onclick = () => {
   taux = {usd_brl: u, chf_usd: c, source: "Saisie manuelle", at: Date.now(), manuel: true}; store.set("cr_taux", taux); enLigne = false;
   $("#m-msg").textContent = "Taux enregistrés et gardés 60 minutes. Touchez « ↻ Taux » pour revenir aux taux automatiques."; afficher();
 };
-$("#in-obj").oninput = objectif;
 $("#b-act").onclick = () => actualiser(true);
 
 /* ---------------------------------------------------------------- navigation */
