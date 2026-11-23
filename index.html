@@ -57,8 +57,8 @@ h2{font-size:17px;margin:0 0 8px}
 #zone-imp .bar button.principal{background:#2a6fdb;color:#fff;border-color:#2a6fdb}
 #zone-imp h1{font-size:22px;font-weight:bold;margin:0 0 4px} #zone-imp h3{font-size:14px;font-weight:normal;margin:0 0 14px;color:#444}
 #zone-imp table{width:100%;border-collapse:collapse;margin:10px 0}
-#zone-imp th,#zone-imp td{border:1px solid #888;padding:6px 8px;font-size:14px;text-align:left}
-#zone-imp th{background:#e8e8e8} #zone-imp .c{text-align:center} #zone-imp .r{text-align:right}
+#zone-imp th,#zone-imp td{border:1px solid #888;padding:6px 5px;font-size:13px;text-align:left}
+#zone-imp th{background:#e8e8e8} #zone-imp .c{text-align:center} #zone-imp .r{text-align:right;white-space:nowrap}
 #zone-imp tfoot td{font-weight:bold;background:#f2f2f2} #zone-imp p{font-size:12px;color:#333}
 @media print{
   body.imprime-imp > *{display:none !important}
@@ -730,7 +730,7 @@ function htmlImp(an){
   const nome = (imp.nom || "").trim();
   return "<h1>RENDIMENTO " + an + "</h1><h3>Aposentadoria AVS (Suíça) – valores recebidos em dólares americanos (US$) e em reais (R$)</h3>"
     + (nome ? "<p><b>Beneficiário:</b> " + esc(nome) + "</p>" : "")
-    + '<table><thead><tr><th>Mês</th><th class="c">Data da remessa</th><th class="r">Valor recebido (US$)</th><th class="r">Valor recebido (R$)</th></tr></thead><tbody>' + lignes
+    + '<table><thead><tr><th>Mês</th><th class="c">Data da remessa</th><th class="r">Valor em US$</th><th class="r">Valor em R$</th></tr></thead><tbody>' + lignes
     + '</tbody><tfoot><tr><td colspan="2">Total</td><td class="r">US$ ' + nfBr.format(tot) + '</td><td class="r">R$ ' + nfBr.format(totB) + "</td></tr></tfoot></table>"
     + "<p>Valores em dólares americanos (US$) recebidos, após a conversão dos francos suíços (CHF) para dólares (USD) feita pela caixa de compensação suíça, e valores em reais (R$) efetivamente recebidos no Banco do Brasil. A data corresponde à da remessa recebida. Em dezembro, o valor inclui a 13ª aposentadoria.</p>"
     + "<p>Documento gerado em " + fmtD(aujourdhui()) + ".</p>";
