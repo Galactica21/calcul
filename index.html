@@ -185,7 +185,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-
     <label for="g-pension">Retraite mensuelle (CHF)</label><input id="g-pension" inputmode="decimal">
     <label for="g-cle">Clé AwesomeAPI (facultatif : taux à la minute si le service la demande)</label><input id="g-cle" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="coller la clé ici">
     <label for="g-oxr">Clé Open Exchange Rates (facultatif : taux mis à jour chaque heure, compte gratuit)</label><input id="g-oxr" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="coller l'App ID ici">
-    <div class="rangee" style="margin-top:8px"><button id="b-test-oxr">Tester la clé</button></div><div class="expl" id="test-oxr-msg"></div>
+    <div class="rangee" style="margin-top:8px"><button id="b-test-aw">Tester AwesomeAPI</button><button id="b-test-oxr">Tester Open Exchange</button></div><div class="expl" id="test-oxr-msg"></div>
     <label for="g-marge">Marge de la Caisse sur CHF → USD (%)</label><input id="g-marge" inputmode="decimal">
     <label for="g-ecart">Écart du Banco do Brasil (R$ sous le marché, par dollar)</label><input id="g-ecart" inputmode="decimal">
     <label for="g-iof">IOF (%)</label><input id="g-iof" inputmode="decimal">
@@ -218,7 +218,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-
 <script>
 "use strict";
 /* ---------------------------------------------------------------- données et outils */
-const VERSION = "3.3 (23/11/2026 · relevé US$ et R$)";
+const VERSION = "3.4 (24/11/2026 · test clé AwesomeAPI)";
 const CAL2026 = ["08/01/2026","05/02/2026","05/03/2026","08/04/2026","07/05/2026","05/06/2026","07/07/2026",
   "06/08/2026","07/09/2026","07/10/2026","06/11/2026","07/12/2026"];
 const DEF = {pension:0, marge:1.18, ecart:0.09, iof:0.38, dateOrdre:"auto", fige:null, figePour:null, theme:"auto", cleAwesome:"", cleOxr:"", nomSauv:"",
@@ -641,6 +641,23 @@ $("#b-test-oxr").onclick = async () => {
     m.textContent = "Test échoué : " + (e && e.message ? e.message : e) + ". Si la clé est bonne, c'est peut-être le réseau ; sinon vérifiez-la sur openexchangerates.org/account/app-ids.";
   }
   $("#b-test-oxr").disabled = false;
+};
+$("#b-test-aw").onclick = async () => {
+  const m = $("#test-oxr-msg"), cle = $("#g-cle").value.trim();
+  if (!cle){ m.textContent = "Collez d'abord la clé AwesomeAPI dans sa case."; return; }
+  m.textContent = "Test AwesomeAPI en cours…"; $("#b-test-aw").disabled = true;
+  try{
+    const j = await getJSON("https://economia.awesomeapi.com.br/json/last/USD-BRL?token=" + encodeURIComponent(cle));
+    const bid = j && j.USDBRL ? parseFloat(j.USDBRL.bid) : NaN;
+    if (bid > 1) m.textContent = "Clé AwesomeAPI acceptée : 1 USD = " + fmt(bid, 4) + " BRL (taux à la minute). N'oubliez pas « Enregistrer ».";
+    else m.textContent = "Réponse inattendue : " + JSON.stringify(j).slice(0, 120);
+  }catch(e){
+    const t = String(e && e.message ? e.message : e);
+    if (/401|403/.test(t)) m.textContent = "Clé refusée (" + t.slice(0, 40) + ") : vérifiez-la sur awesomeapi.com.br.";
+    else if (/429/.test(t)) m.textContent = "Quota dépassé (429) : clé non reconnue ou quota épuisé.";
+    else m.textContent = "Pas de réponse lisible (" + t.slice(0, 60) + "). Le plus probable : quota épuisé (429) ou clé non reconnue, car AwesomeAPI répond alors sans que le navigateur puisse le lire ; sinon réseau bloqué.";
+  }
+  $("#b-test-aw").disabled = false;
 };
 $("#in-fichier").onchange = () => {
   const f = $("#in-fichier").files[0], msg = $("#sauv-msg"); if (!f) return;
