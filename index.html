@@ -242,7 +242,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-
 <script>
 "use strict";
 /* ---------------------------------------------------------------- données et outils */
-const VERSION = "3.7 (25/11/2026 · mise en page PC, sauvegarde auto)";
+const VERSION = "3.8 (26/11/2026 · graphiques nets)";
 const CAL2026 = ["08/01/2026","05/02/2026","05/03/2026","08/04/2026","07/05/2026","05/06/2026","07/07/2026",
   "06/08/2026","07/09/2026","07/10/2026","06/11/2026","07/12/2026"];
 const DEF = {pension:0, marge:1.18, ecart:0.09, iof:0.38, dateOrdre:"auto", fige:null, figePour:null, theme:"auto", cleAwesome:"", cleOxr:"", nomSauv:"",
@@ -431,9 +431,9 @@ async function majHist(){
 function fmtPct(x){ return (x >= 0 ? "+" : "−") + fmt(Math.abs(x), 2) + " %"; }
 function courbe(cv, titre, serie, pct){
   const css = getComputedStyle(document.documentElement), c = (n) => css.getPropertyValue(n).trim() || "#888";
-  const dpr = window.devicePixelRatio || 1, L = cv.clientWidth || 300, H = 112;
+  const dpr = window.devicePixelRatio || 1, L = cv.getBoundingClientRect().width || 300, H = 112;
   cv.width = Math.round(L * dpr); cv.height = Math.round(H * dpr);
-  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, L, H);
+  const g = cv.getContext("2d"); g.setTransform(cv.width / L, 0, 0, cv.height / H, 0, 0); g.clearRect(0, 0, L, H);
   g.font = "12px -apple-system, Segoe UI, sans-serif"; g.textBaseline = "top";
   g.fillStyle = c("--sous"); g.textAlign = "left"; g.fillText(titre, 10, 8);
   if (!serie || serie.length < 2){ g.fillText("Historique indisponible (la source n'a pas répondu)", 10, 50); return; }
@@ -455,6 +455,12 @@ function dessiner(){
   courbe($("#cv-usd"), "USD → BRL · 30 jours", hist ? hist.usd.concat([taux.usd_brl]) : null, taux.usd_pct);
 }
 window.addEventListener("resize", dessiner);
+if (window.ResizeObserver){   // redessine a la taille exacte (changement de mise en page, d'onglet, de zoom) : plus de flou
+  let tDess = 0, dernier = "";
+  const ro = new ResizeObserver(() => { const k = ["#cv-chf", "#cv-usd"].map((i) => Math.round($(i).getBoundingClientRect().width)).join("x") + "@" + (window.devicePixelRatio || 1);
+    if (k === dernier) return; dernier = k; clearTimeout(tDess); tDess = setTimeout(dessiner, 60); });
+  ro.observe($("#cv-chf")); ro.observe($("#cv-usd"));
+}
 
 /* ---------------------------------------------------------------- recapitulatif : logique */
 function analyser(rec){
