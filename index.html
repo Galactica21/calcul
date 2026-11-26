@@ -28,6 +28,12 @@
 :root[data-theme="violet"]{
   --bg:#1a1330;--fg:#ece6ff;--sous:#a99bd1;--champ:#2a2048;--bord:#4b3a7a;--bouton:#3b2d66;--actif:#4f3d86;
   --tot-bg:#2a1d52;--tot-fg:#c9a0ff;--accent:#a66cff;--alerte:#ffb86b;--carte:#231a40;color-scheme:dark}
+:root[data-theme="minuit"]{
+  --bg:#05070d;--fg:#e9edf5;--sous:#8d97ab;--champ:#111726;--bord:#232c42;--bouton:#18203a;--actif:#26315a;
+  --tot-bg:#0c1a2e;--tot-fg:#6fd3ff;--accent:#5b8cff;--alerte:#ffb15e;--carte:#0b1020;color-scheme:dark}
+:root[data-theme="bordeaux"]{
+  --bg:#12060b;--fg:#f6e9ec;--sous:#bf97a1;--champ:#2a1019;--bord:#5a1f33;--bouton:#4a1727;--actif:#6a2038;
+  --tot-bg:#2c0f19;--tot-fg:#ff9db5;--accent:#e0587a;--alerte:#ffc37a;--carte:#1d0a12;color-scheme:dark}
 :root[data-theme="ocean"]{
   --bg:#0e2233;--fg:#e6f4ff;--sous:#8fb4cc;--champ:#16334a;--bord:#2d5573;--bouton:#1e4560;--actif:#2a5a7a;
   --tot-bg:#0f3a47;--tot-fg:#6fe0f0;--accent:#31b6e8;--alerte:#ffc069;--carte:#122b40;color-scheme:dark}
@@ -216,7 +222,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-
     <label for="g-date">Date de l'ordre (« auto » ou JJ/MM/AAAA)</label><input id="g-date" autocapitalize="off" autocorrect="off">
     <label for="g-theme">Thème</label>
     <select id="g-theme"><option value="auto">Automatique</option><option value="clair">Clair</option><option value="sombre">Sombre</option>
-      <option value="violet">Violet minuit</option><option value="ocean">Océan</option></select>
+      <option value="minuit">Sombre minuit</option><option value="bordeaux">Bordeaux minuit</option><option value="violet">Violet minuit</option><option value="ocean">Océan</option></select>
   </div>
   <div class="carte">
     <h2>Calendrier des ordres</h2>
@@ -242,7 +248,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-
 <script>
 "use strict";
 /* ---------------------------------------------------------------- données et outils */
-const VERSION = "3.8 (26/11/2026 · graphiques nets)";
+const VERSION = "3.9 (26/11/2026 · thèmes minuit et bordeaux)";
 const CAL2026 = ["08/01/2026","05/02/2026","05/03/2026","08/04/2026","07/05/2026","05/06/2026","07/07/2026",
   "06/08/2026","07/09/2026","07/10/2026","06/11/2026","07/12/2026"];
 const DEF = {pension:0, marge:1.18, ecart:0.09, iof:0.38, dateOrdre:"auto", fige:null, figePour:null, theme:"auto", cleAwesome:"", cleOxr:"", nomSauv:"",
